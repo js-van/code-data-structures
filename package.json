@@ -1,0 +1,29 @@
+{
+  "name": "code-data-structures",
+  "version": "1.0.0",
+  "description": "data structure",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm run build && npm run watch",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "pretest": "npm run build",
+    "test": "jest --forceExit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rebornix/code-data-structures.git"
+  },
+  "author": "rebornix",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rebornix/code-data-structures/issues"
+  },
+  "homepage": "https://github.com/rebornix/code-data-structures#readme",
+  "devDependencies": {
+    "@types/jest": "^21.1.8",
+    "jest": "^21.2.1",
+    "ts-jest": "^21.2.4",
+    "typescript": "^2.6.2"
+  }
+}
