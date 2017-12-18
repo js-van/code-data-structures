@@ -68,7 +68,9 @@ export class PieceTable {
 		}];
 	}
 	
+	//#region basic operations
 	insert(value: string, offset: number): void {
+		let hasPieces = this._pieces.length > 0;
 		const startOffset = this._changeBuffer.length;
 		this._changeBuffer += value;
 		
@@ -86,50 +88,81 @@ export class PieceTable {
 		// insert newPiece into the piece table.
 		let insertPosition = this.offsetToPieceIndex(offset);
 		if (!insertPosition) {
+			if (this._pieces.length === 0) {
+				this._pieces.push(newPiece);
+				return;
+			} else {
 			throw('this should not happen');
 		}
+		}
+		
 		let originalPiece = this._pieces[insertPosition.index];
 		
 		let { index, remainder } = originalPiece.lineStarts.getIndexOf(insertPosition.remainder);
-		let firstPart = {
+		let firstPart = insertPosition.offset - originalPiece.offset > 0 ? {
 			isOriginalBuffer: originalPiece.isOriginalBuffer,
 			offset: originalPiece.offset,
 			length: insertPosition.offset - originalPiece.offset,
 			lineFeedCnt: index,
-			lineStarts: new PrefixSumComputer(originalPiece.lineStarts.values)
-		};
+			lineStarts: PrefixSumComputer.deepCopy(originalPiece.lineStarts.values)
+		} : null;
 		
+		if (firstPart) {
 		firstPart.lineStarts.removeValues(index + 1, originalPiece.lineStarts.values.length - index - 1);
 		firstPart.lineStarts.changeValue(index, remainder);
+		}
 		
-		let secondPart = {
+		let secondPart = originalPiece.length - (insertPosition.offset - originalPiece.offset) > 0 ? {
 			isOriginalBuffer: originalPiece.isOriginalBuffer,
 			offset: insertPosition.offset,
 			length: originalPiece.length - (insertPosition.offset - originalPiece.offset),
 			lineFeedCnt: originalPiece.lineFeedCnt - index,
-			lineStarts: new PrefixSumComputer(originalPiece.lineStarts.values)
-		}
+			lineStarts: PrefixSumComputer.deepCopy(originalPiece.lineStarts.values)
+		} : null;
+		
+		if (secondPart) {
+			// change value first otherwise the index is wrong.
+			secondPart.lineStarts.changeValue(index, secondPart.lineStarts.values[index] - remainder);
 		
 		if (index > 0) {
-			secondPart.lineStarts.removeValues(0, index - 1);
+				// removeValues (start, cnt!) cnt is 1 based.
+				secondPart.lineStarts.removeValues(0, index);
 		}
 		
-		secondPart.lineStarts.changeValue(index, originalPiece.offset + originalPiece.length - offset);
+		}
 		
 		let newPieces: IPiece[] = [
 			firstPart,
 			newPiece,
 			secondPart
 		].filter( piece => {
-			return piece.length > 0;
+			return piece && piece.length > 0;
 		});
 
 		this._pieces.splice(insertPosition.index, 1, ...newPieces);
+		
+		if (hasPieces && this._pieces.length === 0) {
+			throw('woqu');
+	}
 	}
 	
 	delete(offset: number, cnt: number): void {
-		const firstTouchedPiecePos = this.offsetToPieceIndex(offset);
-		const lastTouchedPiecePos = this.offsetToPieceIndex(offset + cnt);
+		let hasPieces = this._pieces.length > 0;
+		let firstTouchedPiecePos = this.offsetToPieceIndex(offset);
+		let lastTouchedPiecePos = this.offsetToPieceIndex(offset + cnt);
+		
+		if (!firstTouchedPiecePos) {
+			return; // delete is out of range.
+		}
+		
+		if (!lastTouchedPiecePos) {
+			const piece = this._pieces[firstTouchedPiecePos.index];
+			lastTouchedPiecePos = {
+				index: firstTouchedPiecePos.index,
+				offset: piece.offset + piece.length,
+				remainder: length
+			};
+		}
 		
 		if (firstTouchedPiecePos.index === lastTouchedPiecePos.index) {
 			const piece = this._pieces[firstTouchedPiecePos.index];
@@ -162,7 +195,7 @@ export class PieceTable {
 				offset: firstTouchedPiece.offset,
 				length: firstTouchedPiecePos.offset - firstTouchedPiece.offset,
 				lineFeedCnt: index,
-				lineStarts: new PrefixSumComputer(firstTouchedPiece.lineStarts.values)
+				lineStarts: PrefixSumComputer.deepCopy(firstTouchedPiece.lineStarts.values)
 			};
 		
 			newFirstPiece.lineStarts.removeValues(index + 1, firstTouchedPiece.lineStarts.values.length - index - 1);
@@ -177,7 +210,7 @@ export class PieceTable {
 				offset: lastTouchedPiecePos.offset,
 				length: lastTouchedPiece.length + lastTouchedPiece.offset - lastTouchedPiecePos.offset,
 				lineFeedCnt: lastTouchedPiece.lineFeedCnt - index,
-				lineStarts: new PrefixSumComputer(lastTouchedPiece.lineStarts.values)
+				lineStarts: PrefixSumComputer.deepCopy(lastTouchedPiece.lineStarts.values)
 			};
 			
 			// todo I doubt whether I should delete `offset`
@@ -187,13 +220,11 @@ export class PieceTable {
 			if (index > 0) {
 				newLastPiece.lineStarts.removeValues(0, index);
 			}
-			
 		}
 		
 		const newPieces: IPiece[] = [
 			newFirstPiece,
 			newLastPiece
-			
 		].filter( piece => {
 			return piece.length > 0;
 		});
@@ -201,10 +232,58 @@ export class PieceTable {
 		this._pieces.splice(firstTouchedPiecePos.index, lastTouchedPiecePos.index - firstTouchedPiecePos.index + 1, ...newPieces);
 	}
 	
-	getValueInRange(range: IRange): string {
-		return '';
+	substr(offset: number, cnt: number): string {
+		let ret = '';
+		const firstTouchedPiecePos = this.offsetToPieceIndex(offset);
+		const lastTouchedPiecePos = this.offsetToPieceIndex(offset + cnt);
+
+		for (let i = firstTouchedPiecePos.index; i <= lastTouchedPiecePos.index; i++) {
+			let piece = this._pieces[i];
+			
+			let buffer;
+			
+			if (piece.isOriginalBuffer) {
+				buffer = this._originalBuffer;
+			} else {
+				buffer = this._changeBuffer;
+			}
+			
+			let start;
+			let end;
+			if (i === firstTouchedPiecePos.index) {
+				start = piece.offset + firstTouchedPiecePos.remainder;
+			} else {
+				start = piece.offset;
+			}
+			
+			if (i === lastTouchedPiecePos.index) {
+				end = piece.offset + lastTouchedPiecePos.remainder;
+			} else {
+				end = piece.offset + piece.length;
+			}
+			
+			ret += buffer.substring(start, end);
+	}
+		
+		return ret;
 	}
 	
+	//#endregion
+	
+	//#region Model API
+	getContent() {
+        let str = "";
+        this._pieces.forEach(piece => {
+            if (piece.isOriginalBuffer) {
+                str += this._originalBuffer.substr(piece.offset, piece.length);
+            }
+            else {
+                str += this._changeBuffer.substr(piece.offset, piece.length);
+            }
+        });
+        return str;
+	};
+		
 	getLineCount(): number {
 		let cnt = 0;
 		for (let i = 0; i < this._pieces.length; i++) {
@@ -214,6 +293,10 @@ export class PieceTable {
 		return cnt + 1;
 	}
 	
+	getValueInRange(range: IRange): string {
+		return '';
+	}
+
 	getLineContent(lineNumber: number): string {
 		return '';
 	}
@@ -271,6 +354,8 @@ export class PieceTable {
 		lfCnt += out.index;
 		return new Position(lfCnt + 1, column + out.remainder + 1);
 	}
+
+	//#endregion
 	
 	private offsetToPieceIndex(offset: number, searchStartIndex?: number): BufferCursor {
 		// todo this can be done in O(logN) by prefix sum.
@@ -298,20 +383,7 @@ export class PieceTable {
 		
 		return null;
 	}
-	
-	getSequence() {
-        let str = "";
-        this._pieces.forEach(piece => {
-            if (piece.isOriginalBuffer) {
-                str += this._originalBuffer.substr(piece.offset, piece.length);
-            }
-            else {
-                str += this._changeBuffer.substr(piece.offset, piece.length);
-            }
-        });
-        return str;
-	};
-	
+
 	private udpateLFCount(chunk: string): { lineFeedCount: number, lineLengths: Uint32Array } {
 		let chunkLineFeedCnt = 0;
 		let lastLineFeedIndex = -1;

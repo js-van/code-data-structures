@@ -93,6 +93,12 @@ export class PrefixSumComputer {
 		this.prefixSumValidIndex = new Int32Array(1);
 		this.prefixSumValidIndex[0] = -1;
 	}
+	
+	static deepCopy(values: Uint32Array): PrefixSumComputer{
+		let newValues = new Uint32Array(values.length);
+		newValues.set(values);
+		return new PrefixSumComputer(newValues);
+	}
 
 	public getCount(): number {
 		return this.values.length;
