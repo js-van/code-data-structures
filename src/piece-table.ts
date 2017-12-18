@@ -92,8 +92,8 @@ export class PieceTable {
 				this._pieces.push(newPiece);
 				return;
 			} else {
-			throw('this should not happen');
-		}
+				throw('this should not happen');
+			}
 		}
 		
 		let originalPiece = this._pieces[insertPosition.index];
@@ -108,8 +108,8 @@ export class PieceTable {
 		} : null;
 		
 		if (firstPart) {
-		firstPart.lineStarts.removeValues(index + 1, originalPiece.lineStarts.values.length - index - 1);
-		firstPart.lineStarts.changeValue(index, remainder);
+			firstPart.lineStarts.removeValues(index + 1, originalPiece.lineStarts.values.length - index - 1);
+			firstPart.lineStarts.changeValue(index, remainder);
 		}
 		
 		let secondPart = originalPiece.length - (insertPosition.offset - originalPiece.offset) > 0 ? {
@@ -123,14 +123,14 @@ export class PieceTable {
 		if (secondPart) {
 			// change value first otherwise the index is wrong.
 			secondPart.lineStarts.changeValue(index, secondPart.lineStarts.values[index] - remainder);
-		
-		if (index > 0) {
+			
+			if (index > 0) {
 				// removeValues (start, cnt!) cnt is 1 based.
 				secondPart.lineStarts.removeValues(0, index);
+			}
+			
 		}
-		
-		}
-		
+
 		let newPieces: IPiece[] = [
 			firstPart,
 			newPiece,
@@ -143,7 +143,7 @@ export class PieceTable {
 		
 		if (hasPieces && this._pieces.length === 0) {
 			throw('woqu');
-	}
+		}
 	}
 	
 	delete(offset: number, cnt: number): void {
@@ -173,11 +173,13 @@ export class PieceTable {
 			if (firstTouchedPiecePos.offset === piece.offset) {
 				piece.offset += cnt;
 				piece.length -= cnt;
+				piece.lineFeedCnt -= deleteEnd.index;
 				piece.lineStarts.changeValue(deleteEnd.index, piece.lineStarts.values[deleteEnd.index] - deleteEnd.remainder);
 				piece.lineStarts.removeValues(0, deleteEnd.index);
 				return;
 			} else if (lastTouchedPiecePos.offset === piece.offset + piece.length) {
 				piece.length -= cnt;
+				piece.lineFeedCnt -= piece.lineStarts.values.length - deleteBegin.index - 1;
 				piece.lineStarts.removeValues(deleteBegin.index + 1, piece.lineStarts.values.length - deleteBegin.index - 1);
 				piece.lineStarts.changeValue(deleteBegin.index, deleteBegin.remainder);
 				return;

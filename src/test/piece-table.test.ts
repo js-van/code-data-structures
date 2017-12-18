@@ -31,7 +31,7 @@ describe('random is unsupervised', () => {
 		let pt = new PieceTable(str);
 		
 		for (let i = 0; i < 1000; i++) {
-			if (Math.random() < 0.9) {
+			if (Math.random() < .5) {
 				// insert
 				let text = randomStr(100);
 				let pos = randomInt(str.length + 1);
@@ -54,18 +54,18 @@ describe('random is unsupervised', () => {
 		let lastLineFeedIndex = -1;
 		let lineCnt = 1;
 		
-		while ((lineFeedIndex = str.indexOf('\r', lineFeedIndex + 1)) !== -1) {
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
 			if (lineFeedIndex + 1 === str.length) {
 				// last line feed
 				break;
 			}
 			
 			lineCnt += 1;
-			expect(pt.getPositionAt(lineFeedIndex + 1)).toBe(new Position(lineCnt + 1, 1));
-			expect(pt.getOffsetAt(new Position(lineCnt + 1, 1))).toBe(lineFeedIndex + 1);
+			expect(pt.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
 		}
 		
-		// expect(pt.getLineCount()).toBe(str.split('\n').length);
+		expect(pt.getLineCount()).toBe(str.split('\n').length);
 	});
 });
 
@@ -266,6 +266,45 @@ describe('prefix sum for line feed', () => {
 		}
 	});
 	
+	it('delete random bug 1: I forgot to update the lineFeedCnt when deletion is on one single piece.', () => {
+		let pt = new PieceTable('');
+		pt.insert('ba\na\nca\nba\ncbab\ncaa ', 0);
+		pt.insert('cca\naabb\ncac\nccc\nab ', 13);
+		pt.delete(5, 8);
+		pt.delete(30, 2);
+		pt.insert('cbbacccbac\nbaaab\n\nc ', 24);
+		pt.delete(29, 3);
+		pt.delete(23, 9);
+		pt.delete(21, 5);
+		pt.delete(30, 3);
+		pt.insert('cb\nac\nc\n\nacc\nbb\nb\nc ', 3);
+		pt.delete(19, 5);
+		pt.insert('\nbb\n\nacbc\ncbb\nc\nbb\n ', 18);
+		pt.insert('cbccbac\nbc\n\nccabba\n ', 65);
+		pt.insert('a\ncacb\n\nac\n\n\n\n\nabab ', 77);
+		pt.delete(30, 9);
+		pt.insert('b\n\nc\nba\n\nbbbba\n\naa\n ', 45);
+		pt.insert('ab\nbb\ncabacab\ncbc\na ', 82);
+		pt.delete(123, 9);
+		pt.delete(71, 2);
+		pt.insert('acaa\nacb\n\naa\n\nc\n\n\n\n ', 33);
+		
+		let str = pt.getContent();
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pt.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
 });
 
 describe('getTextInRange', () => {
