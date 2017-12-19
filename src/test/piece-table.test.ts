@@ -58,7 +58,7 @@ describe('random is unsupervised', () => {
 		
 		// console.log(output);
 		
-		expect(pt.getContent()).toBe(str);
+		expect(pt.getLinesContent()).toBe(str);
 
 		let lineFeedIndex = -1;
 		let lastLineFeedIndex = -1;
@@ -88,44 +88,44 @@ describe('inserts and deletes', () => {
 		let pieceTable = new PieceTable('This is a document with some text.');
 
 		pieceTable.insert('This is some more text to insert at offset 34.', 34);
-		expect(pieceTable.getContent()).toBe('This is a document with some text.This is some more text to insert at offset 34.')
+		expect(pieceTable.getLinesContent()).toBe('This is a document with some text.This is some more text to insert at offset 34.')
 		pieceTable.delete(42, 5);
-		expect(pieceTable.getContent()).toBe('This is a document with some text.This is more text to insert at offset 34.')
+		expect(pieceTable.getLinesContent()).toBe('This is a document with some text.This is more text to insert at offset 34.')
 	});
 
 	it('more inserts', () => {
 		let pt = new PieceTable('');
 
 		pt.insert('AAA', 0);
-		expect(pt.getContent()).toBe('AAA');
+		expect(pt.getLinesContent()).toBe('AAA');
 
 		pt.insert('BBB', 0);
-		expect(pt.getContent()).toBe('BBBAAA');
+		expect(pt.getLinesContent()).toBe('BBBAAA');
 
 		pt.insert('CCC', 6);
-		expect(pt.getContent()).toBe('BBBAAACCC');
+		expect(pt.getLinesContent()).toBe('BBBAAACCC');
 
 		pt.insert('DDD', 5);
-		expect(pt.getContent()).toBe('BBBAADDDACCC');
+		expect(pt.getLinesContent()).toBe('BBBAADDDACCC');
 	});
 
 	it('more deletes', () => {
 		let pt = new PieceTable('012345678');
 
 		pt.delete(8, 1);
-		expect(pt.getContent()).toBe('01234567');
+		expect(pt.getLinesContent()).toBe('01234567');
 
 		pt.delete(0, 1);
-		expect(pt.getContent()).toBe('1234567');
+		expect(pt.getLinesContent()).toBe('1234567');
 
 		pt.delete(5, 1);
-		expect(pt.getContent()).toBe('123457');
+		expect(pt.getLinesContent()).toBe('123457');
 
 		pt.delete(5, 1);
-		expect(pt.getContent()).toBe('12345');
+		expect(pt.getLinesContent()).toBe('12345');
 
 		pt.delete(0, 5);
-		expect(pt.getContent()).toBe('');
+		expect(pt.getLinesContent()).toBe('');
 	});
 });
 
@@ -187,7 +187,7 @@ describe('prefix sum for line feed', () => {
 		let pieceTable = new PieceTable('a\nb\nc\ndefh\ni\njk');
 		pieceTable.delete(7, 2);
 		
-		expect(pieceTable.getContent()).toBe('a\nb\nc\ndh\ni\njk')
+		expect(pieceTable.getLinesContent()).toBe('a\nb\nc\ndh\ni\njk')
 		expect(pieceTable.getLineCount()).toBe(6);
 		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
 		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
@@ -211,7 +211,7 @@ describe('prefix sum for line feed', () => {
 		pieceTable.insert('fh\ni\njk', 8);
 		pieceTable.delete(7, 2);
 		
-		expect(pieceTable.getContent()).toBe('a\nb\nc\ndh\ni\njk')
+		expect(pieceTable.getLinesContent()).toBe('a\nb\nc\ndh\ni\njk')
 		expect(pieceTable.getLineCount()).toBe(6);
 		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
 		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
@@ -238,7 +238,7 @@ describe('prefix sum for line feed', () => {
 		pieceTable.insert('X ZZ\nYZZYZXXY Y XY\n ', 14);
 		str = str.substring(0, 14) + 'X ZZ\nYZZYZXXY Y XY\n ' + str.substring(14);
 		
-		expect(pieceTable.getContent()).toEqual(str);
+		expect(pieceTable.getLinesContent()).toEqual(str);
 		
 		let lineFeedIndex = -1;
 		let lastLineFeedIndex = -1;
@@ -263,7 +263,7 @@ describe('prefix sum for line feed', () => {
 		pieceTable.insert('XXY \n\nY Y YYY  ZYXY ', 3);
 		str = str.substring(0, 3) + 'XXY \n\nY Y YYY  ZYXY ' + str.substring(3);
 		
-		expect(pieceTable.getContent()).toEqual(str);
+		expect(pieceTable.getLinesContent()).toEqual(str);
 		
 		let lineFeedIndex = -1;
 		let lastLineFeedIndex = -1;
@@ -303,7 +303,7 @@ describe('prefix sum for line feed', () => {
 		pt.delete(71, 2);
 		pt.insert('acaa\nacb\n\naa\n\nc\n\n\n\n ', 33);
 		
-		let str = pt.getContent();
+		let str = pt.getLinesContent();
 		let lineFeedIndex = -1;
 		let lastLineFeedIndex = -1;
 		let lineCnt = 1;
@@ -342,6 +342,14 @@ describe('getTextInRange', () => {
 		expect(pieceTable.substr(0, 11)).toBe('a\nb\nc\ndh\ni\n');
 		expect(pieceTable.substr(0, 12)).toBe('a\nb\nc\ndh\ni\nj');
 		expect(pieceTable.substr(0, 13)).toBe('a\nb\nc\ndh\ni\njk');
+	});
+	
+	it('get line content', () => {
+		let pieceTable = new PieceTable('1');
+		
+		expect(pieceTable.getLineContent(1)).toBe('1');
+		pieceTable.insert('2', 1);
+		expect(pieceTable.getLineContent(1)).toBe('12');
 	});
 	
 	it('get line content basic', () => {
@@ -405,11 +413,19 @@ describe('getTextInRange', () => {
 			expect(pieceTable.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
 		}
 	})
-});
-
-describe('line operations', () => {
-	it('line content, length', () => {
-		let pieceTable = new PieceTable('abc\ndef\nghi');
+	
+	it('getContentInRange', () => {
+		let pieceTable = new PieceTable('a\nb\nc\nde');
+		pieceTable.insert('fh\ni\njk', 8);
+		pieceTable.delete(7, 2);
+		// 'a\nb\nc\ndh\ni\njk'
+		
+		expect(pieceTable.getValueInRange({ startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 3})).toBe('a\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 2, startColumn: 1, endLineNumber: 2, endColumn: 3})).toBe('b\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 3, startColumn: 1, endLineNumber: 3, endColumn: 3})).toBe('c\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 4, startColumn: 1, endLineNumber: 4, endColumn: 4})).toBe('dh\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 5, startColumn: 1, endLineNumber: 5, endColumn: 3})).toBe('i\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 6, startColumn: 1, endLineNumber: 6, endColumn: 3})).toBe('jk');
 	});
 });
 
