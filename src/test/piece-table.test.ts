@@ -30,12 +30,16 @@ describe('random is unsupervised', () => {
 		let str = '';
 		let pt = new PieceTable(str);
 		
+		let output = '';
 		for (let i = 0; i < 1000; i++) {
-			if (Math.random() < .5) {
+			if (Math.random() < .6) {
 				// insert
 				let text = randomStr(100);
 				let pos = randomInt(str.length + 1);
 				pt.insert(text, pos);
+				
+				output += `pieceTable.insert('${text}', ${pos})\n`;
+				output += `str = str.substring(0, ${pos}) + '${text}' + str.substring(${pos})\n`;
 				
 				str = str.substring(0, pos) + text + str.substring(pos);
 			} else {
@@ -45,9 +49,15 @@ describe('random is unsupervised', () => {
 				let deletedText = str.substr(pos, length);
 				pt.delete(pos, length);
 				
+				output += `pieceTable.delete(${pos}, ${length})\n`;
+				output += `str = str.substring(0, ${pos}) + str.substring(${pos} + ${length});\n`
+				
 				str = str.substring(0, pos) + str.substring(pos + length);
 			}
 		}
+		
+		// console.log(output);
+		
 		expect(pt.getContent()).toBe(str);
 
 		let lineFeedIndex = -1;
@@ -65,7 +75,11 @@ describe('random is unsupervised', () => {
 			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
 		}
 		
-		expect(pt.getLineCount()).toBe(str.split('\n').length);
+		let lines = str.split('\n');
+		expect(pt.getLineCount()).toBe(lines.length);
+		for (let i = 0; i < lines.length; i++) {
+			expect(pt.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
 	});
 });
 
@@ -329,6 +343,68 @@ describe('getTextInRange', () => {
 		expect(pieceTable.substr(0, 12)).toBe('a\nb\nc\ndh\ni\nj');
 		expect(pieceTable.substr(0, 13)).toBe('a\nb\nc\ndh\ni\njk');
 	});
+	
+	it('get line content basic', () => {
+		let pieceTable = new PieceTable('1\n2\n3\n4');
+		
+		expect(pieceTable.getLineContent(1)).toBe('1\n');
+		expect(pieceTable.getLineContent(2)).toBe('2\n');
+		expect(pieceTable.getLineContent(3)).toBe('3\n');
+		expect(pieceTable.getLineContent(4)).toBe('4');
+	});
+	
+	it('get line content after inserts/deletes', () => {
+		let pieceTable = new PieceTable('a\nb\nc\nde');
+		pieceTable.insert('fh\ni\njk', 8);
+		pieceTable.delete(7, 2);
+		// 'a\nb\nc\ndh\ni\njk'
+		
+		expect(pieceTable.getLineContent(1)).toBe('a\n');
+		expect(pieceTable.getLineContent(2)).toBe('b\n');
+		expect(pieceTable.getLineContent(3)).toBe('c\n');
+		expect(pieceTable.getLineContent(4)).toBe('dh\n');
+		expect(pieceTable.getLineContent(5)).toBe('i\n');
+		expect(pieceTable.getLineContent(6)).toBe('jk');
+	});
+	
+	it('random 1', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+				
+		pieceTable.insert('J eNnDzQpnlWyjmUu\ny ', 0)
+		str = str.substring(0, 0) + 'J eNnDzQpnlWyjmUu\ny ' + str.substring(0)
+		pieceTable.insert('QPEeRAQmRwlJqtZSWhQ ', 0)
+		str = str.substring(0, 0) + 'QPEeRAQmRwlJqtZSWhQ ' + str.substring(0)
+		pieceTable.delete(5, 1)
+		str = str.substring(0, 5) + str.substring(5 + 1);
+		
+		let lines = str.split('\n');
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	});
+	
+	it('random 2', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('DZoQ tglPCRHMltejRI ', 0)
+		str = str.substring(0, 0) + 'DZoQ tglPCRHMltejRI ' + str.substring(0)
+		pieceTable.insert('JRXiyYqJ qqdcmbfkKX ', 10)
+		str = str.substring(0, 10) + 'JRXiyYqJ qqdcmbfkKX ' + str.substring(10)
+		pieceTable.delete(16, 3)
+		str = str.substring(0, 16) + str.substring(16 + 3);
+		pieceTable.delete(25, 1)
+		str = str.substring(0, 25) + str.substring(25 + 1);
+		pieceTable.insert('vH\nNlvfqQJPm\nSFkhMc ', 18)
+		str = str.substring(0, 18) + 'vH\nNlvfqQJPm\nSFkhMc ' + str.substring(18);
+		
+		let lines = str.split('\n');
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	})
 });
 
 describe('line operations', () => {

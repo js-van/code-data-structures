@@ -24,6 +24,8 @@ interface BufferCursor {
 	 * remainer in current piece.
 	*/
 	remainder: number;
+	
+	remainingLine?: number;
 }
 
 interface IRange {
@@ -265,7 +267,7 @@ export class PieceTable {
 			}
 			
 			ret += buffer.substring(start, end);
-	}
+		}
 		
 		return ret;
 	}
@@ -300,7 +302,51 @@ export class PieceTable {
 	}
 
 	getLineContent(lineNumber: number): string {
-		return '';
+		let cnt = 0;
+		let index = -1;
+		let leftLen = 0;
+		for (let i = 0; i < this._pieces.length; i++) {
+			cnt += this._pieces[i].lineFeedCnt;
+			if (cnt + 1 >= lineNumber) {
+				index = i;
+				break;
+			} else {
+				leftLen += this._pieces[i].length;
+			}
+		}
+				
+		let remainingLine = lineNumber - (cnt - this._pieces[index].lineFeedCnt);
+		let remainder = this._pieces[index].lineStarts.getAccumulatedValue(remainingLine - 2);
+		
+		let endRemainder;
+		
+		let buffer = this._pieces[index].isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+		let ret = '';
+		if (remainingLine === this._pieces[index].lineFeedCnt + 1 && this._pieces.length > index + 1) {
+			ret += buffer.substring(this._pieces[index].offset + remainder, this._pieces[index].offset + this._pieces[index].length);
+			
+			// find the ending line
+			for (let j = index + 1; j < this._pieces.length; j++) {
+				let nextPiece = this._pieces[j];
+				buffer = nextPiece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+				
+				if (nextPiece.lineFeedCnt === 0) {
+					ret += buffer.substr(nextPiece.offset, nextPiece.length);
+					continue;
+				} else {
+					endRemainder = nextPiece.lineStarts.getAccumulatedValue(0);
+			
+					buffer = nextPiece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+					ret += buffer.substring(nextPiece.offset, nextPiece.offset + endRemainder);
+					break;
+				}
+			}
+		} else {
+			endRemainder = this._pieces[index].lineStarts.getAccumulatedValue(remainingLine - 1);
+			ret = buffer.substring(this._pieces[index].offset + remainder, this._pieces[index].offset + endRemainder);
+		}
+		
+		return ret;
 	}
 	
 	getOffsetAt(position: IPosition): number {
@@ -319,11 +365,10 @@ export class PieceTable {
 			}
 		}
 		
-		// TODO, we need to think about lines across pieces.
-		
 		let remainingLine = lineNumber - (cnt - this._pieces[index].lineFeedCnt);
+		let accumualtedValInCurrentIndex = this._pieces[index].lineStarts.getAccumulatedValue(remainingLine - 2);
 		// try to get accumulated value of previous line
-		return leftLen + this._pieces[index].lineStarts.getAccumulatedValue(remainingLine - 2) + position.column - 1;
+		return leftLen + accumualtedValInCurrentIndex + position.column - 1;
 	}
 
 	getPositionAt(offset: number): Position {
@@ -408,4 +453,43 @@ export class PieceTable {
 			lineLengths: lineStartValues
 		};
 	}
+	
+	private findLineStart(lineNumber: number): BufferCursor {
+		let cnt = 0;
+		let index = -1;
+		let leftLen = 0;
+		for (let i = 0; i < this._pieces.length; i++) {
+			cnt += this._pieces[i].lineFeedCnt;
+			if (cnt + 1 >= lineNumber) {
+				index = i;
+				break;
+			} else {
+				leftLen += this._pieces[i].length;
+			}
+		}
+		
+		// TODO, we need to think about lines across pieces.
+		
+		let remainingLine = lineNumber - (cnt - this._pieces[index].lineFeedCnt);
+		let remainder = this._pieces[index].lineStarts.getAccumulatedValue(remainingLine - 2);
+		return {
+			index: index,
+			offset: this._pieces[index].offset + remainder,
+			remainder: remainder,
+			remainingLine: remainingLine
+		};
+	}
+	
+	private findLineEnd(lineNumber: number, lineStartPos: BufferCursor): BufferCursor {
+		let piece = this._pieces[lineStartPos.index];
+		let remainingLine = lineStartPos.remainingLine;
+		// todo: remainder is wrong as I didn't think about lines across pieces.
+		let remainder = piece.lineStarts.getAccumulatedValue(remainingLine - 1);
+		
+		return {
+			index: lineStartPos.index,
+			offset: piece.offset + remainder,
+			remainder: remainder
+		}
+	} 
 }
