@@ -38,8 +38,8 @@ describe('random is unsupervised', () => {
 				let pos = randomInt(str.length + 1);
 				pt.insert(text, pos);
 				
-				output += `pieceTable.insert('${text}', ${pos})\n`;
-				output += `str = str.substring(0, ${pos}) + '${text}' + str.substring(${pos})\n`;
+				output += `pieceTable.insert('${text.replace(/\n/g, '\\n')}', ${pos})\n`;
+				output += `str = str.substring(0, ${pos}) + '${text.replace(/\n/g, '\\n')}' + str.substring(${pos})\n`;
 				
 				str = str.substring(0, pos) + text + str.substring(pos);
 			} else {
@@ -79,6 +79,7 @@ describe('random is unsupervised', () => {
 		expect(pt.getLineCount()).toBe(lines.length);
 		for (let i = 0; i < lines.length; i++) {
 			expect(pt.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+			expect(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
 		}
 	});
 });
@@ -426,6 +427,60 @@ describe('getTextInRange', () => {
 		expect(pieceTable.getValueInRange({ startLineNumber: 4, startColumn: 1, endLineNumber: 4, endColumn: 4})).toBe('dh\n');
 		expect(pieceTable.getValueInRange({ startLineNumber: 5, startColumn: 1, endLineNumber: 5, endColumn: 3})).toBe('i\n');
 		expect(pieceTable.getValueInRange({ startLineNumber: 6, startColumn: 1, endLineNumber: 6, endColumn: 3})).toBe('jk');
+	});
+	
+	it('random tests bug 1', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('huuyYzUfKOENwGgZLqn ', 0)
+		str = str.substring(0, 0) + 'huuyYzUfKOENwGgZLqn ' + str.substring(0)
+		pieceTable.delete(18, 2)
+		str = str.substring(0, 18) + str.substring(18 + 2);
+		pieceTable.delete(3, 1)
+		str = str.substring(0, 3) + str.substring(3 + 1);
+		pieceTable.delete(12, 4)
+		str = str.substring(0, 12) + str.substring(12 + 4);
+		pieceTable.insert('hMbnVEdTSdhLlPevXKF ', 3)
+		str = str.substring(0, 3) + 'hMbnVEdTSdhLlPevXKF ' + str.substring(3)
+		pieceTable.delete(22, 8)
+		str = str.substring(0, 22) + str.substring(22 + 8);
+		pieceTable.insert('S umSnYrqOmOAV\nEbZJ ', 4)
+		str = str.substring(0, 4) + 'S umSnYrqOmOAV\nEbZJ ' + str.substring(4)
+		
+		let lines = str.split('\n');
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	});
+	
+	it('random tests bug 2', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('xfouRDZwdAHjVXJAMV\n ', 0)
+		str = str.substring(0, 0) + 'xfouRDZwdAHjVXJAMV\n ' + str.substring(0)
+		pieceTable.insert('dBGndxpFZBEAIKykYYx ', 16)
+		str = str.substring(0, 16) + 'dBGndxpFZBEAIKykYYx ' + str.substring(16)
+		pieceTable.delete(7, 6)
+		str = str.substring(0, 7) + str.substring(7 + 6);
+		pieceTable.delete(9, 7)
+		str = str.substring(0, 9) + str.substring(9 + 7);
+		pieceTable.delete(17, 6)
+		str = str.substring(0, 17) + str.substring(17 + 6);
+		pieceTable.delete(0, 4)
+		str = str.substring(0, 0) + str.substring(0 + 4);
+		pieceTable.insert('qvEFXCNvVkWgvykahYt ', 9)
+		str = str.substring(0, 9) + 'qvEFXCNvVkWgvykahYt ' + str.substring(9)
+		pieceTable.delete(4, 6)
+		str = str.substring(0, 4) + str.substring(4 + 6);
+		pieceTable.insert('OcSChUYT\nzPEBOpsGmR ', 11)
+		str = str.substring(0, 11) + 'OcSChUYT\nzPEBOpsGmR ' + str.substring(11)
+		pieceTable.insert('KJCozaXTvkE\nxnqAeTz ', 15)
+		str = str.substring(0, 15) + 'KJCozaXTvkE\nxnqAeTz ' + str.substring(15)
+		
+		let lines = str.split('\n');
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
 	});
 });
 

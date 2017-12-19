@@ -459,7 +459,7 @@ export class PieceTable {
 				
 				for (let j = index + 1; j < this._pieces.length; j++) {
 					let nextPiece = this._pieces[j];
-					if (remainingOffset < nextPiece.length) {
+					if (remainingOffset <= nextPiece.length) {
 						return {
 							index: j,
 							offset: nextPiece.offset + remainingOffset - 1,
@@ -469,6 +469,14 @@ export class PieceTable {
 						remainingOffset -= nextPiece.length;
 						continue;
 					}
+				}
+				
+				// we reach to the end of file
+				
+				return {
+					index: this._pieces.length - 1,
+					offset: this._pieces[this._pieces.length - 1].offset + this._pieces[this._pieces.length - 1].length,
+					remainder: this._pieces[this._pieces.length - 1].length
 				}
 			}
 		} else {
