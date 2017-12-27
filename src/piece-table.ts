@@ -1,7 +1,9 @@
 import { PrefixSumComputer } from './prefixSumComputer';
 import { IPosition, Position } from './position';
+import * as rb from './rbTree';
+import { Piece, rbInsertLeft } from './rbTree';
 
-interface IPiece {
+export interface IPiece {
 	isOriginalBuffer: boolean;
 	offset: number;
 	length: number;
@@ -10,7 +12,7 @@ interface IPiece {
 	lineStarts: PrefixSumComputer;
 }
 
-interface BufferCursor {
+export interface BufferCursor {
 	/**
 	 * Piece Index
 	 */
@@ -28,7 +30,7 @@ interface BufferCursor {
 	remainingLine?: number;
 }
 
-interface IRange {
+export interface IRange {
 	/**
 	 * Line number on which the range starts (starts at 1).
 	 */
@@ -47,7 +49,19 @@ interface IRange {
 	readonly endColumn: number;
 }
 
-export class PieceTable {
+export interface IModel {
+	insert(value: string, offset: number): void;
+	delete(offset: number, cnt: number): void;
+	substr(offset: number, cnt: number): string;
+	getLinesContent();
+	getLineCount(): number;
+	getValueInRange(range: IRange): string;
+	getLineContent(lineNumber: number): string;
+	getOffsetAt(position: IPosition): number;
+	getPositionAt(offset: number): Position;
+}
+
+export class PieceTable implements IModel {
 	private _originalBuffer: string;
 	private _changeBuffer: string;
 	private _pieces: IPiece[];
@@ -578,3 +592,4 @@ export class PieceTable {
 		}
 	}
 }
+

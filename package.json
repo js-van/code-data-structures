@@ -25,6 +25,8 @@
     "@types/jest": "^21.1.8",
     "jest": "^21.2.1",
     "ts-jest": "^21.2.4",
-    "typescript": "^2.6.2"
+    "typescript": "^2.6.2",
+    "benchmark": "^2.1.4",
+    "edcore": "0.1.0"
   }
 }

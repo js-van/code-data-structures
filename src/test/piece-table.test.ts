@@ -1,29 +1,6 @@
 import { PieceTable } from '../piece-table';
 import { IPosition, Position } from '../position';
-
-const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ \n';
-
-function randomChar() {
-	return alphabet[randomInt(alphabet.length)];
-};
-
-function randomInt(bound: number) {
-	return Math.floor(Math.random() * bound);
-};
-
-function randomStr(len: number) {
-	if (len == null) {
-		len = 10;
-	}
-	return ((function () {
-		var j, ref, results;
-		results = [];
-		for (j = 1, ref = len; 1 <= ref ? j < ref : j > ref; 1 <= ref ? j++ : j--) {
-			results.push(randomChar());
-		}
-		return results;
-	})()).join('') + ' ';
-};
+import { randomInt, randomStr } from '../util';
 
 describe('random is unsupervised', () => {
 	it('random insert delete', () => {
