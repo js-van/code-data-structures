@@ -7,11 +7,7 @@ export const enum NodeColor {
 }
 
 function getNodeColor(node: TreeNode) {
-	if (node) {
-		return node.color;
-	} else {
-		return NodeColor.Black;
-	}
+	return node.color;
 }
 
 function setNodeColor(node: TreeNode, color: NodeColor) {
@@ -19,48 +15,18 @@ function setNodeColor(node: TreeNode, color: NodeColor) {
 }
 
 function grandParent(treeNode: TreeNode) {
-	let parent = treeNode.parent;
-	
-	if (parent) {
-		return parent.parent;
-	} else {
-		return null;
-	}
-}
-
-function sibling(treeNode: TreeNode) {
-	let parent = treeNode.parent;
-	
-	if(parent) {
-		if (treeNode === treeNode.left) {
-			return treeNode.right;
-		} else {
-			return treeNode.left;
-		}
-	} else {
-		return null;
-	}
-}
-
-function uncle(treeNode: TreeNode) {
-	let parent = treeNode.parent;
-	let gP = grandParent(treeNode);
-	
-	if (gP) {
-		return sibling(parent);
-	}
-	return null;
+	return treeNode.parent.parent;
 }
 
 function leftest(node: TreeNode): TreeNode {
-	while (node.left !== null) {
+	while (node.left !== SENTINEL) {
 		node = node.left;
 	}
 	return node;
 }
 
 function righttest(node: TreeNode): TreeNode {
-	while (node.right !== null) {
+	while (node.right !== SENTINEL) {
 		node = node.right;
 	}
 	return node;
@@ -80,15 +46,15 @@ function leftRotate(tree: RBTree, x: TreeNode) {
 	let y = x.right;
 	
 	// fix size_left
-	y.size_left += x.size_left + x.item.length;
+	y.size_left += x.size_left + (x.item ? x.item.length : 0);
 	
 	x.right = y.left;
 	
-	if (y.left) {
+	if (y.left !== SENTINEL) {
 		y.left.parent = x;
 	}
 	y.parent = x.parent;
-	if (x.parent === null) {
+	if (x.parent === SENTINEL) {
 		tree.root = y;
 	} else if (x.parent.left === x){
 		x.parent.left = y;
@@ -112,15 +78,15 @@ function leftRotate(tree: RBTree, x: TreeNode) {
 function rightRotate(tree: RBTree, y: TreeNode) {
 	let x = y.left;
 	y.left = x.right;
-	if (x.right !== null) {
+	if (x.right !== SENTINEL) {
 		x.right.parent = y;
 	}
 	x.parent = y.parent;
 	
 	// fix size_left
-	y.size_left -= x.size_left + x.item.length;
+	y.size_left -= x.size_left + (x.item ? x.item.length : 0);
 	
-	if (x.parent === null) {
+	if (y.parent === SENTINEL) {
 		tree.root = x;
 	} else if (y == y.parent.right) {
 		y.parent.right = x;
@@ -134,8 +100,8 @@ function rightRotate(tree: RBTree, y: TreeNode) {
 
 function treeInsert(tree: RBTree, z: TreeNode) {
 	let x = tree.root;
-	let y: TreeNode = null;
-	while(x !== null) {
+	let y: TreeNode = SENTINEL;
+	while(x !== SENTINEL) {
 		y = x;
 		if (z.size_left < x.size_left) {
 			x = x.left;
@@ -145,8 +111,10 @@ function treeInsert(tree: RBTree, z: TreeNode) {
 	}
 	
 	z.parent = y;
+	z.left = SENTINEL;
+	z.right = SENTINEL;
 	
-	if (y === null) {
+	if (y === SENTINEL) {
 		tree.root = z;
 	} else {
 		if (z.size_left < y.size_left) {
@@ -177,13 +145,16 @@ export function rbInsert(tree: RBTree, x: TreeNode) {
  */
 export function rbInsertRight(tree: RBTree, node: TreeNode, p: Piece) {
 	let z = new TreeNode(p, NodeColor.Red);
+	z.left = SENTINEL;
+	z.right = SENTINEL;
+	z.parent = SENTINEL;
 	z.size_left = 0;
 	
 	let x = tree.root;
-	if (x === null) {
+	if (x === SENTINEL) {
 		tree.root = z;
 		setNodeColor(z, NodeColor.Black);
-	} else if (node.right === null) {
+	} else if (node.right === SENTINEL) {
 		node.right = z;
 		z.parent = node;
 	} else {
@@ -208,13 +179,16 @@ export function rbInsertRight(tree: RBTree, node: TreeNode, p: Piece) {
  */
 export function rbInsertLeft(tree: RBTree, node: TreeNode, p: Piece) {
 	let z = new TreeNode(p, NodeColor.Red);
+	z.left = SENTINEL;
+	z.right = SENTINEL;
+	z.parent = SENTINEL;
 	z.size_left = 0;
 	
 	let x = tree.root;
-	if (x === null) {
+	if (x === SENTINEL) {
 		tree.root = z;
 		setNodeColor(z, NodeColor.Black);
-	} else if (node.left === null) {
+	} else if (node.left === SENTINEL) {
 		node.left = z;
 		z.parent = node;
 	} else {
@@ -272,7 +246,7 @@ export function fixInsert(tree: RBTree, x: TreeNode) {
 }
 export function fixSizeWhenLengthChange(tree: RBTree, x: TreeNode, delta: number): void {
 	// node length change, we need to update the roots of all subtrees containing this node.
-	while (x !== tree.root) {
+	while (x !== tree.root && x !== SENTINEL) {
 		if (x.parent.left === x) {
 			x.parent.size_left += delta;
 		}
@@ -326,7 +300,7 @@ export function fixSize(tree: RBTree, x: TreeNode) {
 }
 
 function calculateSize(node: TreeNode): number {
-	if (node === null) {
+	if (node === SENTINEL) {
 		return 0;
 	}
 	
@@ -337,10 +311,10 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 	let x: TreeNode;
 	let y: TreeNode;
 	
-	if (z.left === null) {
+	if (z.left === SENTINEL) {
 		y = z;
 		x = y.right;
-	} else if (z.right === null) {
+	} else if (z.right === SENTINEL) {
 		y = z;
 		x = y.left;
 	} else {
@@ -352,37 +326,50 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		tree.root = x;
 		
 		// if x is null, we are removing the only node
-		if (x !== null) {
-			setNodeColor(x, NodeColor.Black);
-	
-			z.detach();
-			// resetSentinel();
-			// recomputeMaxEnd(x);
-			tree.root.parent = null;
-		}
+		setNodeColor(x, NodeColor.Black);
+
+		z.detach();
+		resetSentinel();
+		// recomputeMaxEnd(x);
+		tree.root.parent = SENTINEL;
+
 		return;
 	}
-		
+	
+	let yWasRed = (getNodeColor(y) === NodeColor.Red);
+	
 	if (y === y.parent.left) {
 		y.parent.left = x;
 	} else {
 		y.parent.right = x;
 	}
 	
-	if (y === z) {
-		x.parent = y.parent;
+	 if (y === z) {
+		  x.parent = y.parent;
+		// fixSize(tree, x); good
 	} else {
 		if (y.parent === z) {
 			x.parent = y;
 		} else {
 			x.parent = y.parent;
 		}
+		
+		// as we make changes to x's hierarchy, update size_left of subtree first
+		// fixSize(tree, x); good
 
 		y.left = z.left;
 		y.right = z.right;
 		y.parent = z.parent;
 		setNodeColor(y, getNodeColor(z));
-
+		
+		// update size left
+		// let sizeChange = z.size_left - y.size_left;
+		y.size_left = z.size_left;
+		// fixSize(tree, y);
+		// we replace z with y, so in this sub tree, the length change is z.item.length
+		// fixSizeWhenLengthChange(tree, y, z.item.length);
+		// fixSize(tree, y); good
+		
 		if (z === tree.root) {
 			tree.root = y;
 		} else {
@@ -393,19 +380,31 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 			}
 		}
 
-		if (y.left !== null) {
+		if (y.left !== SENTINEL) {
 			y.left.parent = y;
 		}
-		if (y.right !== null) {
+		if (y.right !== SENTINEL) {
 			y.right.parent = y;
 		}
 	}
 	
 	z.detach();
 	
-	fixSize(tree, x.parent);
-	if (y !== z) {
-		fixSize(tree, y);
+	if (x.parent.left === x) {
+		let newSizeLeft = calculateSize(x.parent);
+		if (newSizeLeft !== x.parent.size_left) {
+			let delta = newSizeLeft - x.parent.size_left;
+			x.parent.size_left = newSizeLeft;
+			fixSizeWhenLengthChange(tree, x.parent, delta);
+		}
+	}
+	
+	// fixSize(tree, x.parent);
+	tree.root.size();
+	
+	if (yWasRed) {
+		resetSentinel();
+		return;
 	}
 	
 	// RB-DELETE-FIXUP
@@ -469,6 +468,8 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		}
 	}
 	setNodeColor(x, NodeColor.Black);
+	resetSentinel();
+	tree.root.size();
 }
 
 /**
@@ -480,7 +481,7 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 export function find(tree: RBTree, offset: number): TreeNode {
 	let x = tree.root;
 	
-	while(x !== null) {
+	while(x !== SENTINEL) {
 		if (x.size_left > offset) {
 			x = x.left;
 		} else if (x.size_left + x.item.length >= offset) {
@@ -508,6 +509,10 @@ export function docOffset(tree: RBTree, node: TreeNode) {
 	}
 	
 	return pos;
+}
+
+function resetSentinel(): void {
+	SENTINEL.parent = SENTINEL;
 }
 
 function debug(str: string, indent: number = 0) {
@@ -540,13 +545,16 @@ export class TreeNode {
 	}
 	
 	public next(): TreeNode {
-		if (this.right !== null) {
+		if (this.right !== SENTINEL) {
+			if (this.right === null) {
+				console.log('');
+			}
 			return leftest(this.right);
 		}
 		
 		let node: TreeNode = this;
 		
-		while(node.parent !== null) {
+		while(node.parent !== SENTINEL) {
 			if (node.parent.left === node) {
 				break;
 			}
@@ -554,14 +562,35 @@ export class TreeNode {
 			node = node.parent;
 		}
 		
-		if (node.parent === null) {
+		if (node.parent === SENTINEL) {
 			// root
-			if (node.right === null) {
-				return null;
+			if (node.right === SENTINEL) {
+				return SENTINEL;
 			}
 			return leftest(node.right);
 		} else {
 			return node.parent;
+		}
+	}
+	
+	public size(): number {
+		if (this === SENTINEL) {
+			return 0;
+		}
+		this.size_left = this.left.size();
+		return this.size_left + this.item.length + this.right.size();
+	}
+	
+	public validate() {
+		if (this === SENTINEL) {
+			return;
+		}
+		
+		this.left.validate();
+		this.right.validate();
+		let left = calculateSize(this.left);
+		if (left !== this.size_left) {
+			console.debug();
 		}
 	}
 	
@@ -621,14 +650,16 @@ export class RBTree implements IModel {
 	constructor(originalBuffer: string, size?: number) {
 		this._originalBuffer = originalBuffer;
 		this._changeBuffer = '';
-		this.root = null;
+		this.root = SENTINEL;
 		
 		let piece = new Piece(true, 0, originalBuffer.length);
-		rbInsertLeft(this, null, piece);
+		if (piece.length > 0) {
+			rbInsertLeft(this, null, piece);
+		}
 	}
 	
 	insert(value: string, offset: number): void {
-		if (this.root !== null) {
+		if (this.root !== SENTINEL) {
 			let node = find(this, offset);
 		
 			if (!node) {
@@ -673,53 +704,104 @@ export class RBTree implements IModel {
 			
 			rbInsertLeft(this, null, piece);
 		}
-		
+		this.validate();
 		// this.print();
 	}
 	
 	delete(offset: number, cnt: number): void {
-		if (this.root !== null) {
+		if (this.root !== SENTINEL) {
 			let firstTouchedNode = find(this, offset);
+			if (!firstTouchedNode) {
+				throw('can not delete out of range');
+			}
 			let lastTouchedNode = find(this, offset + cnt);
+			if (!lastTouchedNode) {
+				find(this, offset + cnt);
+				throw('delete end out of range');
+			}
 			
 			let length = firstTouchedNode.item.length;
 			let nodeOffsetInDocument = docOffset(this, firstTouchedNode);
 			
 			if (firstTouchedNode === lastTouchedNode) {
-				firstTouchedNode.item.length -= nodeOffsetInDocument + length - offset;
-				if (firstTouchedNode.item.length <= 0) {
-					rbDelete(this, firstTouchedNode);
-				} else {
-					fixSizeWhenLengthChange(this, firstTouchedNode, -(nodeOffsetInDocument + length - offset));
+				if (nodeOffsetInDocument === offset) {
+					if (cnt === length) {
+						rbDelete(this, firstTouchedNode);
+						return;
+					}
+					
+					if (cnt > length) {
+						throw('not possible, it is crazy');
+					}
+					
+					// delete head
+					
+					firstTouchedNode.item.length -= cnt;
+					firstTouchedNode.item.offset += cnt;
+					fixSizeWhenLengthChange(this, firstTouchedNode, -cnt);
+					return;
 				}
+				
+				if (nodeOffsetInDocument + length === offset + cnt) {
+					// delete tail
+					firstTouchedNode.item.length -= cnt;
+					fixSizeWhenLengthChange(this, firstTouchedNode, -cnt);
+					return;
+				}
+				
+				// delete content in the middle
+				firstTouchedNode.item.length = offset - nodeOffsetInDocument;
+				fixSizeWhenLengthChange(this, firstTouchedNode, -(nodeOffsetInDocument + length - offset));
 				
 				let newPieceLength = nodeOffsetInDocument + length - offset - cnt;
 				if (newPieceLength <= 0) {
 					return;
 				}
 				let newPiece: Piece = new Piece(firstTouchedNode.item.isOriginalBuffer, offset + cnt - nodeOffsetInDocument + firstTouchedNode.item.offset, newPieceLength);
+				
 				rbInsertRight(this, firstTouchedNode, newPiece);
+				this.validate();
 				return;
 			}
 			
+			// read operations first.
+			let lastNodeOffsetInDocument = docOffset(this, lastTouchedNode);
+
 			// update firstTouchedNode
-			firstTouchedNode.item.length -= nodeOffsetInDocument + length - offset;
+			firstTouchedNode.item.length = offset - nodeOffsetInDocument;
 			fixSizeWhenLengthChange(this, firstTouchedNode, -(nodeOffsetInDocument + length - offset));
 
 			// update lastTouchedNode
-			let lastNodeOffsetInDocument = docOffset(this, lastTouchedNode);
 			lastTouchedNode.item.length -= offset + cnt - lastNodeOffsetInDocument;
 			lastTouchedNode.item.offset += offset + cnt - lastNodeOffsetInDocument;
+			
+			let lastNodeShouldDel = false;
+			if (lastTouchedNode.item.length <= 0) {
+				lastTouchedNode.item.length = 0;
+				lastNodeShouldDel = true;
+			}
+			
 			fixSizeWhenLengthChange(this, lastTouchedNode, -(offset + cnt - lastNodeOffsetInDocument));
 			
 			let secondNode = firstTouchedNode.next();
 			
+			let nodesToDel = [];
 			if (secondNode !== lastTouchedNode) {
-				for (let node = secondNode; node !== null && node !== lastTouchedNode; node = node.next()) {
-					rbDelete(this, node);
+				for (let node = secondNode; node !== SENTINEL && node !== lastTouchedNode; node = node.next()) {
+					nodesToDel.push(node);
 				}
 			}
+			
+			if (lastNodeShouldDel) {
+				nodesToDel.push(lastTouchedNode);
+			}
+			
+			for (let i = 0; i < nodesToDel.length; i++) {
+				rbDelete(this, nodesToDel[i]);
+			}
 		}
+		
+		this.validate();
 	}
 	substr(offset: number, cnt: number): string {
 		throw new Error("Method not implemented.");
@@ -748,8 +830,12 @@ export class RBTree implements IModel {
 		}
 	}
 	
+	validate() {
+		this.root.validate();
+	}
+	
 	private getContentOfSubTree(node: TreeNode): string {
-		if (node === null) {
+		if (node === SENTINEL) {
 			return '';
 		}
 		
