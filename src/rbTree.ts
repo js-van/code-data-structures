@@ -6,6 +6,10 @@ export const enum NodeColor {
 	Red = 1,
 }
 
+export let error = {
+	sizeLeft: false
+};
+
 function getNodeColor(node: TreeNode) {
 	return node.color;
 }
@@ -345,8 +349,8 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 	}
 	
 	 if (y === z) {
-		  x.parent = y.parent;
-		// fixSize(tree, x); good
+		x.parent = y.parent;
+		fixSize(tree, x);
 	} else {
 		if (y.parent === z) {
 			x.parent = y;
@@ -355,21 +359,14 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		}
 		
 		// as we make changes to x's hierarchy, update size_left of subtree first
-		// fixSize(tree, x); good
+		fixSize(tree, x);
 
 		y.left = z.left;
 		y.right = z.right;
 		y.parent = z.parent;
 		setNodeColor(y, getNodeColor(z));
 		
-		// update size left
-		// let sizeChange = z.size_left - y.size_left;
-		y.size_left = z.size_left;
-		// fixSize(tree, y);
-		// we replace z with y, so in this sub tree, the length change is z.item.length
-		// fixSizeWhenLengthChange(tree, y, z.item.length);
-		// fixSize(tree, y); good
-		
+
 		if (z === tree.root) {
 			tree.root = y;
 		} else {
@@ -386,12 +383,20 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		if (y.right !== SENTINEL) {
 			y.right.parent = y;
 		}
+		// update size left
+		// let sizeChange = z.size_left - y.size_left;
+		y.size_left = z.size_left;
+
+		
+		// we replace z with y, so in this sub tree, the length change is z.item.length
+		// fixSizeWhenLengthChange(tree, y, z.item.length);
+		fixSize(tree, y);
 	}
 	
 	z.detach();
 	
 	if (x.parent.left === x) {
-		let newSizeLeft = calculateSize(x.parent);
+		let newSizeLeft = calculateSize(x);
 		if (newSizeLeft !== x.parent.size_left) {
 			let delta = newSizeLeft - x.parent.size_left;
 			x.parent.size_left = newSizeLeft;
@@ -399,8 +404,8 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		}
 	}
 	
-	// fixSize(tree, x.parent);
-	tree.root.size();
+	fixSize(tree, x.parent);
+	// tree.root.size();
 	
 	if (yWasRed) {
 		resetSentinel();
@@ -469,7 +474,7 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 	}
 	setNodeColor(x, NodeColor.Black);
 	resetSentinel();
-	tree.root.size();
+	// tree.root.size();
 }
 
 /**
@@ -590,7 +595,8 @@ export class TreeNode {
 		this.right.validate();
 		let left = calculateSize(this.left);
 		if (left !== this.size_left) {
-			console.debug();
+			// console.debug();
+			error.sizeLeft = true;
 		}
 	}
 	
@@ -704,7 +710,7 @@ export class RBTree implements IModel {
 			
 			rbInsertLeft(this, null, piece);
 		}
-		this.validate();
+		// this.validate();
 		// this.print();
 	}
 	
@@ -760,7 +766,7 @@ export class RBTree implements IModel {
 				let newPiece: Piece = new Piece(firstTouchedNode.item.isOriginalBuffer, offset + cnt - nodeOffsetInDocument + firstTouchedNode.item.offset, newPieceLength);
 				
 				rbInsertRight(this, firstTouchedNode, newPiece);
-				this.validate();
+				// this.validate();
 				return;
 			}
 			
@@ -801,7 +807,7 @@ export class RBTree implements IModel {
 			}
 		}
 		
-		this.validate();
+		// this.validate();
 	}
 	substr(offset: number, cnt: number): string {
 		throw new Error("Method not implemented.");

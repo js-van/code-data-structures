@@ -1,4 +1,4 @@
-import { RBTree as PieceTable, SENTINEL } from '../rbTree';
+import { RBTree as PieceTable, SENTINEL, error } from '../rbTree';
 import { IPosition, Position } from '../position';
 import { randomInt, randomStr } from '../util';
 
@@ -284,6 +284,72 @@ describe('inserts and deletes', () => {
 		str = str.substring(0, 0) + str.substring(0 + 3);
 	})
 
+	it('random delete 8', () => {
+		let str = 'a'
+		let pieceTable = new PieceTable('a')
+		pieceTable.insert('VaSE', 0)
+		str = str.substring(0, 0) + 'VaSE' + str.substring(0)
+		pieceTable.insert('FLnv', 4)
+		str = str.substring(0, 4) + 'FLnv' + str.substring(4)
+		pieceTable.insert('S\nhI', 0)
+		str = str.substring(0, 0) + 'S\nhI' + str.substring(0)
+		pieceTable.insert('KEsg', 13)
+		str = str.substring(0, 13) + 'KEsg' + str.substring(13)
+		pieceTable.delete(14, 3)
+		str = str.substring(0, 14) + str.substring(14 + 3);
+		pieceTable.insert('lnwj', 4)
+		str = str.substring(0, 4) + 'lnwj' + str.substring(4)
+		pieceTable.insert('AzBm', 13)
+		str = str.substring(0, 13) + 'AzBm' + str.substring(13)
+		pieceTable.insert('ZXwY', 1)
+		str = str.substring(0, 1) + 'ZXwY' + str.substring(1)
+		pieceTable.insert('JEA\n', 11)
+		str = str.substring(0, 11) + 'JEA\n' + str.substring(11)
+		pieceTable.insert('BmjS', 19)
+		str = str.substring(0, 19) + 'BmjS' + str.substring(19)
+		pieceTable.insert('jMLD', 6)
+		str = str.substring(0, 6) + 'jMLD' + str.substring(6)
+		pieceTable.insert('WMyJ', 0)
+		str = str.substring(0, 0) + 'WMyJ' + str.substring(0)
+		pieceTable.insert('YdPZ', 26)
+		str = str.substring(0, 26) + 'YdPZ' + str.substring(26)
+		pieceTable.insert('QcUZ', 45)
+		str = str.substring(0, 45) + 'QcUZ' + str.substring(45)
+		pieceTable.delete(7, 8)
+		str = str.substring(0, 7) + str.substring(7 + 8);
+		pieceTable.delete(13, 3)
+		str = str.substring(0, 13) + str.substring(13 + 3);
+	})
+	
+	it('random delete', () => {
+		let str = 'a';
+		let pieceTable = new PieceTable(str);
+		
+		pieceTable.insert('uxqA', 1)
+		str = str.substring(0, 1) + 'uxqA' + str.substring(1)
+		pieceTable.insert('SObT', 3)
+		str = str.substring(0, 3) + 'SObT' + str.substring(3)
+		pieceTable.insert('qLRd', 8)
+		str = str.substring(0, 8) + 'qLRd' + str.substring(8)
+		pieceTable.insert('AzGb', 13)
+		str = str.substring(0, 13) + 'AzGb' + str.substring(13)
+		pieceTable.insert('bcbR', 3)
+		str = str.substring(0, 3) + 'bcbR' + str.substring(3)
+		pieceTable.insert('mBlL', 19)
+		str = str.substring(0, 19) + 'mBlL' + str.substring(19)
+		pieceTable.insert('pyLf', 4)
+		str = str.substring(0, 4) + 'pyLf' + str.substring(4)
+		pieceTable.insert('PzCo', 3)
+		str = str.substring(0, 3) + 'PzCo' + str.substring(3)
+		pieceTable.delete(30, 3)
+		str = str.substring(0, 30) + str.substring(30 + 3);
+		pieceTable.insert('ZbJZ', 21)
+		str = str.substring(0, 21) + 'ZbJZ' + str.substring(21)
+		pieceTable.insert('UCHX', 9)
+		str = str.substring(0, 9) + 'UCHX' + str.substring(9)
+		pieceTable.delete(6, 2)
+		str = str.substring(0, 6) + str.substring(6 + 2);
+	})
 	it('random insert/delete', () => {
 		let str = 'a';
 		let pt = new PieceTable(str);
@@ -315,8 +381,10 @@ describe('inserts and deletes', () => {
 			}
 		}
 
-		// console.log(output);
 
+		if (error.sizeLeft) {
+			console.log(output);
+		}
 		expect(pt.getLinesContent()).toBe(str);
 	});
 });

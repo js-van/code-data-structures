@@ -94,15 +94,25 @@ piece table adds 2 nodes when insert, 1 node when delete in average. So 10000 ed
 ## push 1000 edits (10 times) to empty file, with PieceTable+RBTree
 
 - piece table  				x 10.67 ops/sec
--piece table with rbtree	x 354 ops/sec
+- piece table with rbtree	x 354 ops/sec
 - edcore					x 1.08 ops/sec
 
-## push 1000 edits to empty file
+## push 1000 inserts to empty file
 - piece table				x 24.81 ops/sec
 - piece table with rbtree 	x 309 ops/sec
 - edcore					x 8.32 ops/sec
 
-## push 10000 edits to empty file
+## push 10000 inserts to empty file
 - piece table				x 0.39 ops/sec
 - piece table with rbtree 	x 30.39 ops/sec
 - edcore					x 0.07 ops/sec
+
+## push 1000 edits to empty file
+- piece table 				x 29.31 ops/sec
+- piece table with rbtree 	x 353 ops/sec
+- edcore 					x 15.74 ops/sec
+
+## push 10000 edits to empty file
+- piece table 				x 0.43 ops/sec
+- piece table with rbtree 	x 48.16 ops/sec
+- edcore 					x 0.16 ops/sec
