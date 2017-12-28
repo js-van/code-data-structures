@@ -18,10 +18,6 @@ function setNodeColor(node: TreeNode, color: NodeColor) {
 	node.color = color;
 }
 
-function grandParent(treeNode: TreeNode) {
-	return treeNode.parent.parent;
-}
-
 function leftest(node: TreeNode): TreeNode {
 	while (node.left !== SENTINEL) {
 		node = node.left;
@@ -102,40 +98,6 @@ function rightRotate(tree: RBTree, y: TreeNode) {
 	y.parent = x;
 }
 
-function treeInsert(tree: RBTree, z: TreeNode) {
-	let x = tree.root;
-	let y: TreeNode = SENTINEL;
-	while(x !== SENTINEL) {
-		y = x;
-		if (z.size_left < x.size_left) {
-			x = x.left;
-		} else {
-			x = x.right;
-		}
-	}
-	
-	z.parent = y;
-	z.left = SENTINEL;
-	z.right = SENTINEL;
-	
-	if (y === SENTINEL) {
-		tree.root = z;
-	} else {
-		if (z.size_left < y.size_left) {
-			y.left = z;
-		} else {
-			y.right = z;
-		}
-	}
-}
-
-export function rbInsert(tree: RBTree, x: TreeNode) {
-	treeInsert(tree, x);
-	x.color = NodeColor.Red;
-	
-	fixInsert(tree, x);
-}
-
 /**
  *      node              node
  *     /  \              /  \
@@ -208,14 +170,14 @@ export function fixInsert(tree: RBTree, x: TreeNode) {
 	fixSize(tree, x);
 	
 	while(x !== tree.root && getNodeColor(x.parent) === NodeColor.Red) {
-		if (x.parent === grandParent(x).left) {
-			const y = grandParent(x).right;
+		if (x.parent === x.parent.parent.left) {
+			const y = x.parent.parent.right;
 			
 			if (getNodeColor(y) === NodeColor.Red) {
 				setNodeColor(x.parent, NodeColor.Black);
 				setNodeColor(y, NodeColor.Black);
-				setNodeColor(grandParent(x), NodeColor.Red);
-				x = grandParent(x);
+				setNodeColor(x.parent.parent, NodeColor.Red);
+				x = x.parent.parent;
 			} else {
 				if (x === x.parent.right) {
 					x = x.parent;
@@ -223,31 +185,32 @@ export function fixInsert(tree: RBTree, x: TreeNode) {
 				}
 				
 				setNodeColor(x.parent, NodeColor.Black);
-				setNodeColor(grandParent(x), NodeColor.Red);
-				rightRotate(tree, grandParent(x));
+				setNodeColor(x.parent.parent, NodeColor.Red);
+				rightRotate(tree, x.parent.parent);
 			}
 		} else {
-			const y = grandParent(x).left;
+			const y = x.parent.parent.left;
 			
 			if (getNodeColor(y) === NodeColor.Red) {
 				setNodeColor(x.parent, NodeColor.Black);
 				setNodeColor(y, NodeColor.Black);
-				setNodeColor(grandParent(x), NodeColor.Red);
-				x =grandParent(x);
+				setNodeColor(x.parent.parent, NodeColor.Red);
+				x =x.parent.parent;
 			} else {
 				if (x === x.parent.left) {
 					x = x.parent;
 					rightRotate(tree, x);
 				}
 				setNodeColor(x.parent, NodeColor.Black);
-				setNodeColor(grandParent(x), NodeColor.Red);
-				leftRotate(tree, grandParent(x));
+				setNodeColor(x.parent.parent, NodeColor.Red);
+				leftRotate(tree, x.parent.parent);
 			}
 		}
 	}
 	
 	setNodeColor(tree.root, NodeColor.Black);
 }
+
 export function fixSizeWhenLengthChange(tree: RBTree, x: TreeNode, delta: number): void {
 	// node length change, we need to update the roots of all subtrees containing this node.
 	while (x !== tree.root && x !== SENTINEL) {
@@ -258,19 +221,11 @@ export function fixSizeWhenLengthChange(tree: RBTree, x: TreeNode, delta: number
 		x = x.parent;
 	}
 }
+
 export function fixSize(tree: RBTree, x: TreeNode) {
 	let delta = 0;
 	if (x === tree.root) {
 		return;
-	}
-	
-	/**
-	 * todo, can this even happen?
-	 */
-	if (x.parent.left === x.parent.right && x.parent.item) {
-		x = x.parent;
-		delta = - x.size_left;
-		x.size_left = 0;
 	}
 	
 	if (delta === 0) {
@@ -334,7 +289,6 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 
 		z.detach();
 		resetSentinel();
-		// recomputeMaxEnd(x);
 		tree.root.parent = SENTINEL;
 
 		return;
@@ -366,7 +320,6 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		y.parent = z.parent;
 		setNodeColor(y, getNodeColor(z));
 		
-
 		if (z === tree.root) {
 			tree.root = y;
 		} else {
@@ -384,12 +337,8 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 			y.right.parent = y;
 		}
 		// update size left
-		// let sizeChange = z.size_left - y.size_left;
-		y.size_left = z.size_left;
-
-		
 		// we replace z with y, so in this sub tree, the length change is z.item.length
-		// fixSizeWhenLengthChange(tree, y, z.item.length);
+		y.size_left = z.size_left;
 		fixSize(tree, y);
 	}
 	
@@ -405,7 +354,6 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 	}
 	
 	fixSize(tree, x.parent);
-	// tree.root.size();
 	
 	if (yWasRed) {
 		resetSentinel();
@@ -474,46 +422,6 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 	}
 	setNodeColor(x, NodeColor.Black);
 	resetSentinel();
-	// tree.root.size();
-}
-
-/**
- * 
- * @param tree 
- * @param offset 0 based.
- * TODO: return BufferCursor
- */
-export function find(tree: RBTree, offset: number): TreeNode {
-	let x = tree.root;
-	
-	while(x !== SENTINEL) {
-		if (x.size_left > offset) {
-			x = x.left;
-		} else if (x.size_left + x.item.length >= offset) {
-			return x;
-		} else {
-			offset -= x.size_left + x.item.length;
-			x = x.right;
-		}
-	}
-	
-	return null;
-}
-
-export function docOffset(tree: RBTree, node: TreeNode) {
-	if (!node) {
-		return 0;
-	}
-	let pos = node.size_left;
-	while(node !== tree.root) {
-		if (node.parent.right === node) {
-			pos += node.parent.size_left + node.parent.item.length;
-		}
-		
-		node = node.parent;
-	}
-	
-	return pos;
 }
 
 function resetSentinel(): void {
@@ -666,14 +574,14 @@ export class RBTree implements IModel {
 	
 	insert(value: string, offset: number): void {
 		if (this.root !== SENTINEL) {
-			let node = find(this, offset);
+			let node = this.nodeAt(offset);
 		
 			if (!node) {
-				find(this, offset);
+				this.nodeAt(offset);
 				throw('we are in trouble');
 			}
 			
-			let nodeOffsetInDocument = docOffset(this, node);
+			let nodeOffsetInDocument = this.offsetOfNode(node);
 			const startOffset = this._changeBuffer.length;
 			this._changeBuffer += value;
 			
@@ -716,18 +624,18 @@ export class RBTree implements IModel {
 	
 	delete(offset: number, cnt: number): void {
 		if (this.root !== SENTINEL) {
-			let firstTouchedNode = find(this, offset);
+			let firstTouchedNode = this.nodeAt(offset);
 			if (!firstTouchedNode) {
 				throw('can not delete out of range');
 			}
-			let lastTouchedNode = find(this, offset + cnt);
+			let lastTouchedNode = this.nodeAt(offset + cnt);
 			if (!lastTouchedNode) {
-				find(this, offset + cnt);
+				this.nodeAt(offset + cnt);
 				throw('delete end out of range');
 			}
 			
 			let length = firstTouchedNode.item.length;
-			let nodeOffsetInDocument = docOffset(this, firstTouchedNode);
+			let nodeOffsetInDocument = this.offsetOfNode(firstTouchedNode);
 			
 			if (firstTouchedNode === lastTouchedNode) {
 				if (nodeOffsetInDocument === offset) {
@@ -771,7 +679,7 @@ export class RBTree implements IModel {
 			}
 			
 			// read operations first.
-			let lastNodeOffsetInDocument = docOffset(this, lastTouchedNode);
+			let lastNodeOffsetInDocument = this.offsetOfNode(lastTouchedNode);
 
 			// update firstTouchedNode
 			firstTouchedNode.item.length = offset - nodeOffsetInDocument;
@@ -838,6 +746,45 @@ export class RBTree implements IModel {
 	
 	validate() {
 		this.root.validate();
+	}
+	
+	/**
+	 * 
+	 * @param tree 
+	 * @param offset 0 based.
+	 * TODO: return BufferCursor
+	 */
+	nodeAt(offset: number): TreeNode {
+		let x = this.root;
+		
+		while(x !== SENTINEL) {
+			if (x.size_left > offset) {
+				x = x.left;
+			} else if (x.size_left + x.item.length >= offset) {
+				return x;
+			} else {
+				offset -= x.size_left + x.item.length;
+				x = x.right;
+			}
+		}
+		
+		return null;
+	}
+	
+	offsetOfNode(node: TreeNode): number {
+		if (!node) {
+			return 0;
+		}
+		let pos = node.size_left;
+		while(node !== this.root) {
+			if (node.parent.right === node) {
+				pos += node.parent.size_left + node.parent.item.length;
+			}
+			
+			node = node.parent;
+		}
+		
+		return pos;
 	}
 	
 	private getContentOfSubTree(node: TreeNode): string {

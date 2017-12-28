@@ -355,7 +355,7 @@ describe('inserts and deletes', () => {
 		let pt = new PieceTable(str);
 
 		let output = '';
-		for (let i = 0; i < 1000; i++) {
+		for (let i = 0; i < 10000; i++) {
 			if (Math.random() < .5) {
 				// insert
 				let text = randomStr(100);
