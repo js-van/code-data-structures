@@ -388,3 +388,108 @@ describe('inserts and deletes', () => {
 		expect(pt.getLinesContent()).toBe(str);
 	});
 });
+
+describe('prefix sum for line feed', () => {
+	it('basic', () => {
+		let pieceTable = new PieceTable('1\n2\n3\n4');
+		
+		// expect(pieceTable.getLineCount()).toBe(4);
+		expect(pieceTable.getPositionAt(0)).toEqual(new Position(1, 1));
+		expect(pieceTable.getPositionAt(1)).toEqual(new Position(1, 2));
+		expect(pieceTable.getPositionAt(2)).toEqual(new Position(2, 1));
+		expect(pieceTable.getPositionAt(3)).toEqual(new Position(2, 2));
+		expect(pieceTable.getPositionAt(4)).toEqual(new Position(3, 1));
+		expect(pieceTable.getPositionAt(5)).toEqual(new Position(3, 2));
+		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
+		
+		expect(pieceTable.getOffsetAt({ lineNumber: 1, column: 1 })).toBe(0);
+		expect(pieceTable.getOffsetAt({ lineNumber: 1, column: 2 })).toBe(1);
+		expect(pieceTable.getOffsetAt({ lineNumber: 2, column: 1 })).toBe(2);
+		expect(pieceTable.getOffsetAt({ lineNumber: 2, column: 2 })).toBe(3);
+		expect(pieceTable.getOffsetAt({ lineNumber: 3, column: 1 })).toBe(4);
+		expect(pieceTable.getOffsetAt({ lineNumber: 3, column: 2 })).toBe(5);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 1 })).toBe(6);
+	});
+	
+	it('append', () => {
+		let pieceTable = new PieceTable('a\nb\nc\nde');
+		pieceTable.insert('fh\ni\njk', 8);
+		
+		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getPositionAt(9)).toEqual(new Position(4, 4));
+		
+		expect(pieceTable.getOffsetAt({ lineNumber: 1, column: 1 })).toBe(0);
+	});
+	
+	it('insert', () => {
+		let pieceTable = new PieceTable('a\nb\nc\nde');
+		pieceTable.insert('fh\ni\njk', 7);
+		
+		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
+		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
+		expect(pieceTable.getPositionAt(8)).toEqual(new Position(4, 3));
+		expect(pieceTable.getPositionAt(9)).toEqual(new Position(4, 4));
+		expect(pieceTable.getPositionAt(12)).toEqual(new Position(6, 1));
+		expect(pieceTable.getPositionAt(13)).toEqual(new Position(6, 2));
+		expect(pieceTable.getPositionAt(14)).toEqual(new Position(6, 3));
+		
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 1 })).toBe(6);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 2 })).toBe(7);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 3 })).toBe(8);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 4 })).toBe(9);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 1 })).toBe(12);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 2 })).toBe(13);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 3 })).toBe(14);
+	});
+	
+	it('insert random bug 1: prefixSumComputer.removeValues(start, cnt) cnt is 1 based.', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert(' ZX \n Z\nZ\n YZ\nY\nZXX ', 0);
+		str = str.substring(0, 0) + ' ZX \n Z\nZ\n YZ\nY\nZXX ' + str.substring(0);
+		pieceTable.insert('X ZZ\nYZZYZXXY Y XY\n ', 14);
+		str = str.substring(0, 14) + 'X ZZ\nYZZYZXXY Y XY\n ' + str.substring(14);
+		
+		expect(pieceTable.getLinesContent()).toEqual(str);
+		
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pieceTable.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pieceTable.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
+	
+	it('insert random bug 2: prefixSumComputer initialize does not do deep copy of UInt32Array.', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('ZYZ\nYY XY\nX \nZ Y \nZ ', 0);
+		str = str.substring(0, 0) + 'ZYZ\nYY XY\nX \nZ Y \nZ ' + str.substring(0);
+		pieceTable.insert('XXY \n\nY Y YYY  ZYXY ', 3);
+		str = str.substring(0, 3) + 'XXY \n\nY Y YYY  ZYXY ' + str.substring(3);
+		
+		expect(pieceTable.getLinesContent()).toEqual(str);
+		
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pieceTable.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pieceTable.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
+});
