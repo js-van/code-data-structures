@@ -586,7 +586,7 @@ export class RBTree implements IModel {
 			this._changeBuffer += value;
 			
 			if (!node.item.isOriginalBuffer && (node.item.offset + node.item.length === this._changeBuffer.length - value.length) && (nodeOffsetInDocument + node.item.length === offset) ) {
-				// update this node.
+				// append content to this node
 				// we don't want to keep adding node when users simply type in sequence.
 				node.item.length += value.length;
 				fixSizeWhenLengthChange(this, node, value.length); // damn
@@ -594,7 +594,8 @@ export class RBTree implements IModel {
 				let newPiece: Piece = new Piece(false, startOffset, value.length);
 				
 				if (nodeOffsetInDocument === offset) {
-					// we are inserting content to the beginning of node, so make it the prevNode of node.
+					// we are inserting content to the beginning of node
+					// insert to its left
 					rbInsertLeft(this, node, newPiece);
 				} else if (nodeOffsetInDocument + node.item.length > offset) {
 					// we need to split node.
@@ -608,7 +609,6 @@ export class RBTree implements IModel {
 				} else {
 					rbInsertRight(this, node, newPiece);
 				}
-				
 			}
 		} else {
 			// insert new node
@@ -625,19 +625,13 @@ export class RBTree implements IModel {
 	delete(offset: number, cnt: number): void {
 		if (this.root !== SENTINEL) {
 			let firstTouchedNode = this.nodeAt(offset);
-			if (!firstTouchedNode) {
-				throw('can not delete out of range');
-			}
 			let lastTouchedNode = this.nodeAt(offset + cnt);
-			if (!lastTouchedNode) {
-				this.nodeAt(offset + cnt);
-				throw('delete end out of range');
-			}
 			
 			let length = firstTouchedNode.item.length;
 			let nodeOffsetInDocument = this.offsetOfNode(firstTouchedNode);
 			
 			if (firstTouchedNode === lastTouchedNode) {
+				// deletion falls into one node.
 				if (nodeOffsetInDocument === offset) {
 					if (cnt === length) {
 						rbDelete(this, firstTouchedNode);
@@ -649,7 +643,6 @@ export class RBTree implements IModel {
 					}
 					
 					// delete head
-					
 					firstTouchedNode.item.length -= cnt;
 					firstTouchedNode.item.offset += cnt;
 					fixSizeWhenLengthChange(this, firstTouchedNode, -cnt);
@@ -664,6 +657,7 @@ export class RBTree implements IModel {
 				}
 				
 				// delete content in the middle
+				// this node will be splitted to nodes
 				firstTouchedNode.item.length = offset - nodeOffsetInDocument;
 				fixSizeWhenLengthChange(this, firstTouchedNode, -(nodeOffsetInDocument + length - offset));
 				
@@ -678,7 +672,8 @@ export class RBTree implements IModel {
 				return;
 			}
 			
-			// read operations first.
+			// unluckily, we need to delete/modify more than one node.
+			// perform read operations before any write operation.
 			let lastNodeOffsetInDocument = this.offsetOfNode(lastTouchedNode);
 
 			// update firstTouchedNode
@@ -689,25 +684,18 @@ export class RBTree implements IModel {
 			lastTouchedNode.item.length -= offset + cnt - lastNodeOffsetInDocument;
 			lastTouchedNode.item.offset += offset + cnt - lastNodeOffsetInDocument;
 			
-			let lastNodeShouldDel = false;
-			if (lastTouchedNode.item.length <= 0) {
-				lastTouchedNode.item.length = 0;
-				lastNodeShouldDel = true;
+			let nodesToDel = [];
+			if (lastTouchedNode.item.length === 0) {
+				nodesToDel.push(lastTouchedNode);
 			}
 			
 			fixSizeWhenLengthChange(this, lastTouchedNode, -(offset + cnt - lastNodeOffsetInDocument));
 			
 			let secondNode = firstTouchedNode.next();
-			
-			let nodesToDel = [];
 			if (secondNode !== lastTouchedNode) {
 				for (let node = secondNode; node !== SENTINEL && node !== lastTouchedNode; node = node.next()) {
 					nodesToDel.push(node);
 				}
-			}
-			
-			if (lastNodeShouldDel) {
-				nodesToDel.push(lastTouchedNode);
 			}
 			
 			for (let i = 0; i < nodesToDel.length; i++) {
