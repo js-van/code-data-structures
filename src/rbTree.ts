@@ -47,8 +47,8 @@ function leftRotate(tree: RBTree, x: TreeNode) {
 	let y = x.right;
 	
 	// fix size_left
-	y.size_left += x.size_left + (x.item ? x.item.length : 0);
-	y.lf_left += x.lf_left + (x.item ? x.item.lineFeedCnt : 0);
+	y.size_left += x.size_left + (x.piece ? x.piece.length : 0);
+	y.lf_left += x.lf_left + (x.piece ? x.piece.lineFeedCnt : 0);
 	x.right = y.left;
 	
 	if (y.left !== SENTINEL) {
@@ -85,8 +85,8 @@ function rightRotate(tree: RBTree, y: TreeNode) {
 	x.parent = y.parent;
 	
 	// fix size_left
-	y.size_left -= x.size_left + (x.item ? x.item.length : 0);
-	y.lf_left -= x.lf_left + (x.item ? x.item.lineFeedCnt : 0);
+	y.size_left -= x.size_left + (x.piece ? x.piece.length : 0);
+	y.lf_left -= x.lf_left + (x.piece ? x.piece.lineFeedCnt : 0);
 	
 	if (y.parent === SENTINEL) {
 		tree.root = x;
@@ -171,7 +171,7 @@ export function rbInsertLeft(tree: RBTree, node: TreeNode, p: Piece) {
 }
 
 export function fixInsert(tree: RBTree, x: TreeNode) {
-	fixSize(tree, x);
+	recomputeMetadata(tree, x);
 	
 	while(x !== tree.root && getNodeColor(x.parent) === NodeColor.Red) {
 		if (x.parent === x.parent.parent.left) {
@@ -215,7 +215,7 @@ export function fixInsert(tree: RBTree, x: TreeNode) {
 	setNodeColor(tree.root, NodeColor.Black);
 }
 
-export function fixMetadataWhenLengthChange(tree: RBTree, x: TreeNode, delta: number, lineFeedCntDelta: number = 0): void {
+export function updateMetadata(tree: RBTree, x: TreeNode, delta: number, lineFeedCntDelta: number): void {
 	// node length change, we need to update the roots of all subtrees containing this node.
 	while (x !== tree.root && x !== SENTINEL) {
 		if (x.parent.left === x) {
@@ -227,7 +227,7 @@ export function fixMetadataWhenLengthChange(tree: RBTree, x: TreeNode, delta: nu
 	}
 }
 
-export function fixSize(tree: RBTree, x: TreeNode) {
+export function recomputeMetadata(tree: RBTree, x: TreeNode) {
 	let delta = 0;
 	let lf_delta = 0;
 	if (x === tree.root) {
@@ -256,7 +256,7 @@ export function fixSize(tree: RBTree, x: TreeNode) {
 	
 	// go upwards till root. O(logN)
 	while (x !== tree.root && (delta !== 0 || lf_delta !== 0)) {
-		let item = x.item;
+		let item = x.piece;
 		
 		if (x.parent.left === x) {
 			x.parent.size_left += delta;
@@ -272,7 +272,7 @@ function calculateSize(node: TreeNode): number {
 		return 0;
 	}
 	
-	return node.size_left + node.item.length + calculateSize(node.right);
+	return node.size_left + node.piece.length + calculateSize(node.right);
 }
 
 function calculateLF(node: TreeNode): number {
@@ -280,7 +280,7 @@ function calculateLF(node: TreeNode): number {
 		return 0;
 	}
 	
-	return node.lf_left + node.item.lineFeedCnt + calculateLF(node.right);
+	return node.lf_left + node.piece.lineFeedCnt + calculateLF(node.right);
 }
 
 export function rbDelete(tree: RBTree, z: TreeNode) {
@@ -321,7 +321,7 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 	
 	 if (y === z) {
 		x.parent = y.parent;
-		fixSize(tree, x);
+		recomputeMetadata(tree, x);
 	} else {
 		if (y.parent === z) {
 			x.parent = y;
@@ -330,7 +330,7 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		}
 		
 		// as we make changes to x's hierarchy, update size_left of subtree first
-		fixSize(tree, x);
+		recomputeMetadata(tree, x);
 
 		y.left = z.left;
 		y.right = z.right;
@@ -353,11 +353,11 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 		if (y.right !== SENTINEL) {
 			y.right.parent = y;
 		}
-		// update size left
+		// update metadata
 		// we replace z with y, so in this sub tree, the length change is z.item.length
 		y.size_left = z.size_left;
 		y.lf_left = z.lf_left;
-		fixSize(tree, y);
+		recomputeMetadata(tree, y);
 	}
 	
 	z.detach();
@@ -370,11 +370,11 @@ export function rbDelete(tree: RBTree, z: TreeNode) {
 			let lf_delta = newLFLeft - x.parent.lf_left;
 			x.parent.size_left = newSizeLeft;
 			x.parent.lf_left = newLFLeft;
-			fixMetadataWhenLengthChange(tree, x.parent, delta, lf_delta);
+			updateMetadata(tree, x.parent, delta, lf_delta);
 		}
 	}
 	
-	fixSize(tree, x.parent);
+	recomputeMetadata(tree, x.parent);
 	
 	if (yWasRed) {
 		resetSentinel();
@@ -466,12 +466,12 @@ export class TreeNode {
 	color: NodeColor;
 	
 	// Piece
-	item: Piece;
+	piece: Piece;
 	size_left: number; // size of the left subtree (not inorder)
 	lf_left: number; // line feeds cnt in the left subtree (not in order)
 
 	constructor(piece: Piece, color: NodeColor) {
-		this.item = piece;
+		this.piece = piece;
 		this.color = color;
 		this.size_left = 0;
 		this.lf_left = 0;
@@ -537,7 +537,7 @@ export class TreeNode {
 			return 0;
 		}
 		this.size_left = this.left.size();
-		return this.size_left + this.item.length + this.right.size();
+		return this.size_left + this.piece.length + this.right.size();
 	}
 	
 	public validate() {
@@ -555,12 +555,12 @@ export class TreeNode {
 	}
 	
 	public print(indent: number = 0) {
-		if (!this.item) {
+		if (!this.piece) {
 			return;
 		}
 		
-		debug(`${this.color === NodeColor.Red ? 'R' : 'B'} (${this.item.isOriginalBuffer ? 'Original' : 'Changed'}, left: ${this.size_left}, offsetInBuf: ${this.item.offset}, len: ${this.item.length})`, indent);
-		if (this.left && this.left.item)
+		debug(`${this.color === NodeColor.Red ? 'R' : 'B'} (${this.piece.isOriginalBuffer ? 'Original' : 'Changed'}, left: ${this.size_left}, offsetInBuf: ${this.piece.offset}, len: ${this.piece.length})`, indent);
+		if (this.left && this.left.piece)
 		{
 			debug("--- left tree:", indent);
 			++indent;
@@ -568,7 +568,7 @@ export class TreeNode {
 			--indent;
 		}
 
-		if (this.right && this.right.item)
+		if (this.right && this.right.piece)
 		{
 			debug("--- right tree:", indent);
 			++indent;
@@ -651,24 +651,24 @@ export class RBTree implements IModel {
 				this.nodeAt(offset);
 				throw('we are in trouble');
 			}
-			let insertPos = node.item.lineStarts.getIndexOf(remainder);
+			let insertPos = node.piece.lineStarts.getIndexOf(remainder);
 			
 			let nodeOffsetInDocument = this.offsetOfNode(node);
 			const startOffset = this._changeBuffer.length;
 			this._changeBuffer += value;
 			
-			if (!node.item.isOriginalBuffer && (node.item.offset + node.item.length === this._changeBuffer.length - value.length) && (nodeOffsetInDocument + node.item.length === offset) ) {
+			if (!node.piece.isOriginalBuffer && (node.piece.offset + node.piece.length === this._changeBuffer.length - value.length) && (nodeOffsetInDocument + node.piece.length === offset) ) {
 				// append content to this node
 				// we don't want to keep adding node when users simply type in sequence.
-				node.item.length += value.length;
+				node.piece.length += value.length;
 				const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
-				node.item.lineFeedCnt += lineFeedCount;
+				node.piece.lineFeedCnt += lineFeedCount;
 				if (lineLengths) {
-					let lineStarts = node.item.lineStarts;
+					let lineStarts = node.piece.lineStarts;
 					lineStarts.changeValue(lineStarts.values.length - 1, lineStarts.values[lineStarts.values.length - 1] + lineLengths[0]);
 					lineStarts.insertValues(lineStarts.values.length, lineLengths.slice(1));
 				}
-				fixMetadataWhenLengthChange(this, node, value.length); // damn
+				updateMetadata(this, node, value.length, lineFeedCount);
 			} else {
 				const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
 				let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
@@ -677,10 +677,10 @@ export class RBTree implements IModel {
 					// we are inserting content to the beginning of node
 					// insert to its left
 					rbInsertLeft(this, node, newPiece);
-				} else if (nodeOffsetInDocument + node.item.length > offset) {
+				} else if (nodeOffsetInDocument + node.piece.length > offset) {
 					// we need to split node.
 					// create the new piece first as we are reading current node info before mdofiying it.
-					let newRightPiece = new Piece(node.item.isOriginalBuffer, node.item.offset + offset - nodeOffsetInDocument, nodeOffsetInDocument + node.item.length - offset, node.item.lineFeedCnt - insertPos.index, node.item.lineStarts.values);
+					let newRightPiece = new Piece(node.piece.isOriginalBuffer, node.piece.offset + offset - nodeOffsetInDocument, nodeOffsetInDocument + node.piece.length - offset, node.piece.lineFeedCnt - insertPos.index, node.piece.lineStarts.values);
 					newRightPiece.lineStarts.changeValue(insertPos.index, newRightPiece.lineStarts.values[insertPos.index] - insertPos.remainder);
 					
 					if (insertPos.index > 0) {
@@ -688,13 +688,14 @@ export class RBTree implements IModel {
 					}
 					
 					// update node metadata
-					node.item.length -= newRightPiece.length;
-					node.item.lineFeedCnt = insertPos.index;
-					node.item.lineStarts.removeValues(insertPos.index + 1, node.item.lineStarts.values.length - insertPos.index - 1);
-					node.item.lineStarts.changeValue(insertPos.index, insertPos.remainder);
+					node.piece.length -= newRightPiece.length;
+					let lf_delta = insertPos.index - node.piece.lineFeedCnt;
+					node.piece.lineFeedCnt = insertPos.index;
+					node.piece.lineStarts.removeValues(insertPos.index + 1, node.piece.lineStarts.values.length - insertPos.index - 1);
+					node.piece.lineStarts.changeValue(insertPos.index, insertPos.remainder);
 					
 					
-					fixMetadataWhenLengthChange(this, node, -newRightPiece.length);
+					updateMetadata(this, node, -newRightPiece.length, lf_delta);
 					
 					rbInsertRight(this, node, newRightPiece);
 					rbInsertRight(this, node, newPiece);
@@ -717,17 +718,22 @@ export class RBTree implements IModel {
 	
 	delete(offset: number, cnt: number): void {
 		if (this.root !== SENTINEL) {
-			let firstTouchedNode = this.nodeAt(offset).node;
-			let lastTouchedNode = this.nodeAt(offset + cnt).node;
+			let startPosition = this.nodeAt(offset);
+			let endPosition = this.nodeAt(offset + cnt);
+			let startNode = startPosition.node;
+			let endNode = endPosition.node;
 			
-			let length = firstTouchedNode.item.length;
-			let nodeOffsetInDocument = this.offsetOfNode(firstTouchedNode);
+			let length = startNode.piece.length;
+			let startNodeOffsetInDocument = this.offsetOfNode(startNode);
+			let splitPos = startNode.piece.lineStarts.getIndexOf(offset - startNodeOffsetInDocument);
 			
-			if (firstTouchedNode === lastTouchedNode) {
+			if (startNode === endNode) {
 				// deletion falls into one node.
-				if (nodeOffsetInDocument === offset) {
+				let endSplitPos = startNode.piece.lineStarts.getIndexOf(offset - startNodeOffsetInDocument + cnt);
+
+				if (startNodeOffsetInDocument === offset) {
 					if (cnt === length) {
-						rbDelete(this, firstTouchedNode);
+						rbDelete(this, startNode);
 						return;
 					}
 					
@@ -736,57 +742,91 @@ export class RBTree implements IModel {
 					}
 					
 					// delete head
-					firstTouchedNode.item.length -= cnt;
-					firstTouchedNode.item.offset += cnt;
-					fixMetadataWhenLengthChange(this, firstTouchedNode, -cnt);
+					startNode.piece.length -= cnt;
+					startNode.piece.offset += cnt;
+					startNode.piece.lineFeedCnt -= endSplitPos.index;
+					startNode.piece.lineStarts.changeValue(endSplitPos.index, startNode.piece.lineStarts.values[endSplitPos.index] - endSplitPos.remainder);
+					
+					if (endSplitPos.index > 0) {
+						startNode.piece.lineStarts.removeValues(0, endSplitPos.index);
+					}
+					updateMetadata(this, startNode, -cnt, -endSplitPos.index);
 					return;
 				}
 				
-				if (nodeOffsetInDocument + length === offset + cnt) {
+				if (startNodeOffsetInDocument + length === offset + cnt) {
 					// delete tail
-					firstTouchedNode.item.length -= cnt;
-					fixMetadataWhenLengthChange(this, firstTouchedNode, -cnt);
+					startNode.piece.length -= cnt;
+					let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
+					startNode.piece.lineFeedCnt = splitPos.index;
+					startNode.piece.lineStarts.removeValues(splitPos.index + 1, startNode.piece.lineStarts.values.length - splitPos.index - 1);
+					startNode.piece.lineStarts.changeValue(splitPos.index, splitPos.remainder);
+					updateMetadata(this, startNode, -cnt, lf_delta);
 					return;
 				}
 				
 				// delete content in the middle
 				// this node will be splitted to nodes
-				firstTouchedNode.item.length = offset - nodeOffsetInDocument;
-				fixMetadataWhenLengthChange(this, firstTouchedNode, -(nodeOffsetInDocument + length - offset));
 				
-				let newPieceLength = nodeOffsetInDocument + length - offset - cnt;
+				// read operations first
+				let oldLineLengthsVal = startNode.piece.lineStarts.values;
+				
+				startNode.piece.length = offset - startNodeOffsetInDocument;
+				let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
+				startNode.piece.lineFeedCnt = splitPos.index;
+				startNode.piece.lineStarts = new PrefixSumComputer(oldLineLengthsVal.slice(0, splitPos.index + 1));
+				startNode.piece.lineStarts.changeValue(splitPos.index, splitPos.remainder);
+				updateMetadata(this, startNode, -(startNodeOffsetInDocument + length - offset), lf_delta);
+				
+				let newPieceLength = startNodeOffsetInDocument + length - offset - cnt;
 				if (newPieceLength <= 0) {
 					return;
 				}
-				let newPiece: Piece = new Piece(firstTouchedNode.item.isOriginalBuffer, offset + cnt - nodeOffsetInDocument + firstTouchedNode.item.offset, newPieceLength, firstTouchedNode.item.lineFeedCnt /* todo it's wrong*/, firstTouchedNode.item.lineStarts.values);
+
+				let newPiece: Piece = new Piece(
+					startNode.piece.isOriginalBuffer, 
+					offset + cnt - startNodeOffsetInDocument + startNode.piece.offset, 
+					newPieceLength,
+					oldLineLengthsVal.length - endSplitPos.index - 1,
+					oldLineLengthsVal.slice(endSplitPos.index)
+				);
+				newPiece.lineStarts.changeValue(0, newPiece.lineStarts.values[0] - endSplitPos.remainder);
 				
-				rbInsertRight(this, firstTouchedNode, newPiece);
+				rbInsertRight(this, startNode, newPiece);
 				// this.validate();
 				return;
 			}
 			
 			// unluckily, we need to delete/modify more than one node.
 			// perform read operations before any write operation.
-			let lastNodeOffsetInDocument = this.offsetOfNode(lastTouchedNode);
+			let endNodeOffsetInDocument = this.offsetOfNode(endNode);
 
 			// update firstTouchedNode
-			firstTouchedNode.item.length = offset - nodeOffsetInDocument;
-			fixMetadataWhenLengthChange(this, firstTouchedNode, -(nodeOffsetInDocument + length - offset));
+			startNode.piece.length = offset - startNodeOffsetInDocument;
+			let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
+			startNode.piece.lineFeedCnt = splitPos.index;
+			startNode.piece.lineStarts.removeValues(splitPos.index + 1, startNode.piece.lineStarts.values.length - splitPos.index - 1);
+			startNode.piece.lineStarts.changeValue(splitPos.index, splitPos.remainder);
+			updateMetadata(this, startNode, -(startNodeOffsetInDocument + length - offset), lf_delta);
 
 			// update lastTouchedNode
-			lastTouchedNode.item.length -= offset + cnt - lastNodeOffsetInDocument;
-			lastTouchedNode.item.offset += offset + cnt - lastNodeOffsetInDocument;
+			endNode.piece.length -= offset + cnt - endNodeOffsetInDocument;
+			endNode.piece.offset += offset + cnt - endNodeOffsetInDocument;
+			let endSplitPos = endNode.piece.lineStarts.getIndexOf(offset - endNodeOffsetInDocument + cnt);
+			endNode.piece.lineFeedCnt -= endSplitPos.index;
+			endNode.piece.lineStarts.changeValue(endSplitPos.index, endNode.piece.lineStarts.values[endSplitPos.index] - endSplitPos.remainder);
+			endNode.piece.lineStarts.removeValues(0, endSplitPos.index);
+			updateMetadata(this, endNode, -(offset + cnt - endNodeOffsetInDocument), -endSplitPos.index);
 			
 			let nodesToDel = [];
-			if (lastTouchedNode.item.length === 0) {
-				nodesToDel.push(lastTouchedNode);
+			if (endNode.piece.length === 0) {
+				nodesToDel.push(endNode);
 			}
 			
-			fixMetadataWhenLengthChange(this, lastTouchedNode, -(offset + cnt - lastNodeOffsetInDocument));
 			
-			let secondNode = firstTouchedNode.next();
-			if (secondNode !== lastTouchedNode) {
-				for (let node = secondNode; node !== SENTINEL && node !== lastTouchedNode; node = node.next()) {
+			let secondNode = startNode.next();
+			if (secondNode !== endNode) {
+				for (let node = secondNode; node !== SENTINEL && node !== endNode; node = node.next()) {
 					nodesToDel.push(node);
 				}
 			}
@@ -828,14 +868,14 @@ export class RBTree implements IModel {
 		while(x !== SENTINEL) {
 			if (x.lf_left !== 0 && x.lf_left + 1 >= lineNumber) {
 				x = x.left;
-			} else if (x.lf_left + x.item.lineFeedCnt + 1 >= lineNumber) {
+			} else if (x.lf_left + x.piece.lineFeedCnt + 1 >= lineNumber) {
 				leftLen += x.size_left;
 				// lineNumber >= 2
-				let accumualtedValInCurrentIndex = x.item.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 2);
+				let accumualtedValInCurrentIndex = x.piece.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 2);
 				return leftLen += accumualtedValInCurrentIndex + position.column - 1;
 			} else {
-				lineNumber -= x.lf_left + x.item.lineFeedCnt;
-				leftLen += x.size_left + x.item.length;
+				lineNumber -= x.lf_left + x.piece.lineFeedCnt;
+				leftLen += x.size_left + x.piece.length;
 				x = x.right;
 			}
 		}
@@ -848,10 +888,10 @@ export class RBTree implements IModel {
 		let lfCnt = 0;
 		
 		while(x !== SENTINEL) {
-			if (x.size_left > offset) {
+			if (x.size_left !== 0 && x.size_left >= offset) {
 				x = x.left;
-			} else if (x.size_left + x.item.length >= offset) {
-				let out = x.item.lineStarts.getIndexOf(offset - x.size_left);
+			} else if (x.size_left + x.piece.length >= offset) {
+				let out = x.piece.lineStarts.getIndexOf(offset - x.size_left);
 				
 				let column = 0;
 				
@@ -859,7 +899,7 @@ export class RBTree implements IModel {
 					let prev = x.prev();
 					
 					if (prev !== SENTINEL) {
-						let lineLens = prev.item.lineStarts.values;
+						let lineLens = prev.piece.lineStarts.values;
 						column += lineLens[lineLens.length - 1];
 					}
 				}
@@ -867,8 +907,8 @@ export class RBTree implements IModel {
 				lfCnt += x.lf_left + out.index;
 				return new Position(lfCnt + 1, column + out.remainder + 1);
 			} else {
-				offset -= x.size_left + x.item.length;
-				lfCnt += x.lf_left + x.item.lineFeedCnt;
+				offset -= x.size_left + x.piece.length;
+				lfCnt += x.lf_left + x.piece.lineFeedCnt;
 				x = x.right;
 			}
 		}
@@ -898,13 +938,13 @@ export class RBTree implements IModel {
 		while(x !== SENTINEL) {
 			if (x.size_left > offset) {
 				x = x.left;
-			} else if (x.size_left + x.item.length >= offset) {
+			} else if (x.size_left + x.piece.length >= offset) {
 				return {
 					node: x,
 					remainder: offset - x.size_left
 				}
 			} else {
-				offset -= x.size_left + x.item.length;
+				offset -= x.size_left + x.piece.length;
 				x = x.right;
 			}
 		}
@@ -919,7 +959,7 @@ export class RBTree implements IModel {
 		let pos = node.size_left;
 		while(node !== this.root) {
 			if (node.parent.right === node) {
-				pos += node.parent.size_left + node.parent.item.length;
+				pos += node.parent.size_left + node.parent.piece.length;
 			}
 			
 			node = node.parent;
@@ -933,8 +973,8 @@ export class RBTree implements IModel {
 			return '';
 		}
 		
-		let buffer = node.item.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
-		let currentContent = buffer.substr(node.item.offset, node.item.length);
+		let buffer = node.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+		let currentContent = buffer.substr(node.piece.offset, node.piece.length);
 
 		return this.getContentOfSubTree(node.left) + currentContent + this.getContentOfSubTree(node.right);
 	}

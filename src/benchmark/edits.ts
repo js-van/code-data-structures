@@ -51,7 +51,7 @@ readFileAsync('empty.ts').then((edBuffer) => {
 	var prRb = new RBTree('a');
 	let ptOperations = [];
 	for (let i = 0; i < 10000; i++) {
-		if (Math.random() < .5) {
+		if (Math.random() < 2) {
 			// insert
 			let text = randomStr(100);
 			let pos = randomInt(str.length + 1);

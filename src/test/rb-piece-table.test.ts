@@ -443,6 +443,53 @@ describe('prefix sum for line feed', () => {
 		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 3 })).toBe(14);
 	});
 	
+	it('delete', () => {
+		let pieceTable = new PieceTable('a\nb\nc\ndefh\ni\njk');
+		pieceTable.delete(7, 2);
+		
+		expect(pieceTable.getLinesContent()).toBe('a\nb\nc\ndh\ni\njk')
+		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
+		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
+		expect(pieceTable.getPositionAt(8)).toEqual(new Position(4, 3));
+		expect(pieceTable.getPositionAt(9)).toEqual(new Position(5, 1));
+		expect(pieceTable.getPositionAt(11)).toEqual(new Position(6, 1));
+		expect(pieceTable.getPositionAt(12)).toEqual(new Position(6, 2));
+		expect(pieceTable.getPositionAt(13)).toEqual(new Position(6, 3));
+		
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 1 })).toBe(6);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 2 })).toBe(7);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 3 })).toBe(8);
+		expect(pieceTable.getOffsetAt({ lineNumber: 5, column: 1 })).toBe(9);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 1 })).toBe(11);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 2 })).toBe(12);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 3 })).toBe(13);
+	});
+	
+	it('add+delete 1', () => {
+		let pieceTable = new PieceTable('a\nb\nc\nde');
+		pieceTable.insert('fh\ni\njk', 8);
+		pieceTable.delete(7, 2);
+		
+		expect(pieceTable.getLinesContent()).toBe('a\nb\nc\ndh\ni\njk')
+		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
+		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
+		expect(pieceTable.getPositionAt(8)).toEqual(new Position(4, 3));
+		expect(pieceTable.getPositionAt(9)).toEqual(new Position(5, 1));
+		expect(pieceTable.getPositionAt(11)).toEqual(new Position(6, 1));
+		expect(pieceTable.getPositionAt(12)).toEqual(new Position(6, 2));
+		expect(pieceTable.getPositionAt(13)).toEqual(new Position(6, 3));
+		
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 1 })).toBe(6);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 2 })).toBe(7);
+		expect(pieceTable.getOffsetAt({ lineNumber: 4, column: 3 })).toBe(8);
+		expect(pieceTable.getOffsetAt({ lineNumber: 5, column: 1 })).toBe(9);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 1 })).toBe(11);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 2 })).toBe(12);
+		expect(pieceTable.getOffsetAt({ lineNumber: 6, column: 3 })).toBe(13);
+	});
+	
 	it('insert random bug 1: prefixSumComputer.removeValues(start, cnt) cnt is 1 based.', () => {
 		let str = '';
 		let pieceTable = new PieceTable('');
@@ -491,5 +538,212 @@ describe('prefix sum for line feed', () => {
 			expect(pieceTable.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
 			expect(pieceTable.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
 		}
+	});
+	
+	it('delete random bug 1: I forgot to update the lineFeedCnt when deletion is on one single piece.', () => {
+		let pt = new PieceTable('');
+		pt.insert('ba\na\nca\nba\ncbab\ncaa ', 0);
+		pt.insert('cca\naabb\ncac\nccc\nab ', 13);
+		pt.delete(5, 8);
+		pt.delete(30, 2);
+		pt.insert('cbbacccbac\nbaaab\n\nc ', 24);
+		pt.delete(29, 3);
+		pt.delete(23, 9);
+		pt.delete(21, 5);
+		pt.delete(30, 3);
+		pt.insert('cb\nac\nc\n\nacc\nbb\nb\nc ', 3);
+		pt.delete(19, 5);
+		pt.insert('\nbb\n\nacbc\ncbb\nc\nbb\n ', 18);
+		pt.insert('cbccbac\nbc\n\nccabba\n ', 65);
+		pt.insert('a\ncacb\n\nac\n\n\n\n\nabab ', 77);
+		pt.delete(30, 9);
+		pt.insert('b\n\nc\nba\n\nbbbba\n\naa\n ', 45);
+		pt.insert('ab\nbb\ncabacab\ncbc\na ', 82);
+		pt.delete(123, 9);
+		pt.delete(71, 2);
+		pt.insert('acaa\nacb\n\naa\n\nc\n\n\n\n ', 33);
+		
+		let str = pt.getLinesContent();
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pt.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
+	
+	
+	it('delete random bug rb tree 1', () => {
+		let str = '';
+		let pieceTable = new PieceTable(str);
+		pieceTable.insert('YXXZ\n\nYY\n', 0)
+		str = str.substring(0, 0) + 'YXXZ\n\nYY\n' + str.substring(0)
+		pieceTable.delete(0, 5)
+		str = str.substring(0, 0) + str.substring(0 + 5);
+		pieceTable.insert('ZXYY\nX\nZ\n', 0)
+		str = str.substring(0, 0) + 'ZXYY\nX\nZ\n' + str.substring(0)
+		pieceTable.insert('\nXY\nYXYXY', 10)
+		str = str.substring(0, 10) + '\nXY\nYXYXY' + str.substring(10)
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pieceTable.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pieceTable.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
+	
+	it('delete random bug rb tree 2', () => {
+		let str = '';
+		let pieceTable = new PieceTable(str);
+		pieceTable.insert('YXXZ\n\nYY\n', 0)
+		str = str.substring(0, 0) + 'YXXZ\n\nYY\n' + str.substring(0)
+		// pieceTable.delete(7, 2)
+		// str = str.substring(0, 7) + str.substring(7 + 2);
+		// pieceTable.delete(6, 1)
+		// str = str.substring(0, 6) + str.substring(6 + 1);
+		// pieceTable.delete(0, 5)
+		// str = str.substring(0, 0) + str.substring(0 + 5);
+		pieceTable.insert('ZXYY\nX\nZ\n', 0)
+		str = str.substring(0, 0) + 'ZXYY\nX\nZ\n' + str.substring(0)
+		pieceTable.insert('\nXY\nYXYXY', 10)
+		str = str.substring(0, 10) + '\nXY\nYXYXY' + str.substring(10)
+		pieceTable.insert('YZXY\nZ\nYX', 8)
+		str = str.substring(0, 8) + 'YZXY\nZ\nYX' + str.substring(8)
+		pieceTable.insert('XX\nXXYXYZ', 12)
+		str = str.substring(0, 12) + 'XX\nXXYXYZ' + str.substring(12)
+		pieceTable.delete(0, 4)
+		str = str.substring(0, 0) + str.substring(0 + 4);
+		// pieceTable.delete(30, 3)
+		// str = str.substring(0, 30) + str.substring(30 + 3);
+		
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pieceTable.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pieceTable.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
+	
+	it('delete random bug rb tree 3', () => {
+		let str = '';
+		let pieceTable = new PieceTable(str);
+		pieceTable.insert('YXXZ\n\nYY\n', 0)
+		str = str.substring(0, 0) + 'YXXZ\n\nYY\n' + str.substring(0)
+		pieceTable.delete(7, 2)
+		str = str.substring(0, 7) + str.substring(7 + 2);
+		pieceTable.delete(6, 1)
+		str = str.substring(0, 6) + str.substring(6 + 1);
+		pieceTable.delete(0, 5)
+		str = str.substring(0, 0) + str.substring(0 + 5);
+		pieceTable.insert('ZXYY\nX\nZ\n', 0)
+		str = str.substring(0, 0) + 'ZXYY\nX\nZ\n' + str.substring(0)
+		pieceTable.insert('\nXY\nYXYXY', 10)
+		str = str.substring(0, 10) + '\nXY\nYXYXY' + str.substring(10)
+		pieceTable.insert('YZXY\nZ\nYX', 8)
+		str = str.substring(0, 8) + 'YZXY\nZ\nYX' + str.substring(8)
+		pieceTable.insert('XX\nXXYXYZ', 12)
+		str = str.substring(0, 12) + 'XX\nXXYXYZ' + str.substring(12)
+		pieceTable.delete(0, 4)
+		str = str.substring(0, 0) + str.substring(0 + 4);
+		pieceTable.delete(30, 3)
+		str = str.substring(0, 30) + str.substring(30 + 3);
+		
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pieceTable.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pieceTable.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
+});
+
+describe('random is unsupervised', () => {
+	it('random insert delete', () => {
+		let str = '';
+		let pt = new PieceTable(str);
+		
+		let output = '';
+		for (let i = 0; i < 1000; i++) {
+			if (Math.random() < .5) {
+				// insert
+				let text = randomStr(100);
+				let pos = randomInt(str.length + 1);
+				pt.insert(text, pos);
+				
+				output += `pieceTable.insert('${text.replace(/\n/g, '\\n')}', ${pos})\n`;
+				output += `str = str.substring(0, ${pos}) + '${text.replace(/\n/g, '\\n')}' + str.substring(${pos})\n`;
+				
+				str = str.substring(0, pos) + text + str.substring(pos);
+			} else {
+				// delete
+				let pos = randomInt(str.length);
+				let length = Math.min(str.length - pos, Math.floor(Math.random() * 10))
+				let deletedText = str.substr(pos, length);
+				pt.delete(pos, length);
+				
+				output += `pieceTable.delete(${pos}, ${length})\n`;
+				output += `str = str.substring(0, ${pos}) + str.substring(${pos} + ${length});\n`
+				
+				str = str.substring(0, pos) + str.substring(pos + length);
+			}
+		}
+		
+		// console.log(output);
+		
+		expect(pt.getLinesContent()).toBe(str);
+
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pt.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+		
+		// let lines = str.split('\n');
+		// expect(pt.getLineCount()).toBe(lines.length);
+		// for (let i = 0; i < lines.length; i++) {
+		// 	expect(pt.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		// 	expect(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		// }
 	});
 });

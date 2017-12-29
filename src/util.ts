@@ -1,4 +1,5 @@
-const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n';
+// const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n';
+const alphabet = 'XYZ\n';
 
 export function randomChar() {
 	return alphabet[randomInt(alphabet.length)];
