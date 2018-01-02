@@ -1,6 +1,7 @@
 import { IModel, IRange } from './piece-table';
 import { IPosition, Position } from './position';
 import { PrefixSumComputer } from './prefixSumComputer';
+import { posix } from 'path';
 
 export const enum NodeColor {
 	Black = 0,
@@ -497,10 +498,10 @@ export class TreeNode {
 		
 		if (node.parent === SENTINEL) {
 			// root
-			if (node.right === SENTINEL) {
+			// if (node.right === SENTINEL) {
 				return SENTINEL;
-			}
-			return leftest(node.right);
+			// }
+			// return leftest(node.right);
 		} else {
 			return node.parent;
 		}
@@ -523,10 +524,10 @@ export class TreeNode {
 		
 		if (node.parent === SENTINEL) {
 			// root
-			if (node.left === SENTINEL) {
+			// if (node.left === SENTINEL) {
 				return SENTINEL;
-			}
-			return righttest(node.left);
+			// }
+			// return righttest(node.left);
 		} else {
 			return node.parent;
 		}
@@ -852,11 +853,90 @@ export class RBTree implements IModel {
 	}
 	
 	getValueInRange(range: IRange): string {
-		throw new Error("Method not implemented.");
+		// todo, validate range.
+		if (range.startLineNumber === range.endLineNumber && range.startColumn === range.endColumn) {
+			return '';
+		}
+		
+		let startPosition = this.nodeAt2({ lineNumber: range.startLineNumber, column: range.startColumn});
+		let endPosition = this.nodeAt2({ lineNumber: range.endLineNumber, column: range.endColumn});
+		
+		if (startPosition.node === endPosition.node) {
+			let node = startPosition.node;
+			let buffer = node.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+			return buffer.substring(node.piece.offset + startPosition.remainder, node.piece.offset + endPosition.remainder);
+		}
+		
+
+		let x = startPosition.node;
+		let buffer = x.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+		let ret = buffer.substring(x.piece.offset + startPosition.remainder, x.piece.offset + x.piece.length);
+		
+		x = x.next();
+		while (x !== SENTINEL) {
+			let buffer = x.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+			
+			if (x === endPosition.node) {
+				ret += buffer.substring(x.piece.offset, x.piece.offset + endPosition.remainder);
+				break;
+			} else {
+				ret += buffer.substr(x.piece.offset, x.piece.length);
+			}
+			
+			x = x.next();
+		}
+		
+		return ret;
 	}
 	
 	getLineContent(lineNumber: number): string {
-		throw new Error("Method not implemented.");
+		let x = this.root;
+		
+		let ret = '';
+		while(x !== SENTINEL) {
+			if (x.left !== SENTINEL && x.lf_left >= lineNumber - 1) {
+				x = x.left;
+			} else if (x.lf_left + x.piece.lineFeedCnt > lineNumber - 1) {
+				let prevAccumualtedValue = x.piece.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 2);
+				let accumualtedValue = x.piece.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 1);
+				let buffer = x.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+				
+				return buffer.substring(x.piece.offset + prevAccumualtedValue, x.piece.offset + accumualtedValue);
+			} else if (x.lf_left + x.piece.lineFeedCnt === lineNumber - 1) {
+				let prevAccumualtedValue = x.piece.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 2);
+				let buffer = x.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+				
+				ret = buffer.substring(x.piece.offset + prevAccumualtedValue, x.piece.offset + x.piece.length);
+				break;
+			} else {
+				lineNumber -= x.lf_left + x.piece.lineFeedCnt;
+				x = x.right;
+			}
+		}
+		
+		if (x === SENTINEL) {
+			throw('not possible');
+		}
+		
+		// search in order, to find the node contains end column
+		x = x.next();
+		while (x !== SENTINEL) {
+			let buffer = x.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+			
+			if (x.piece.lineFeedCnt > 0) {
+				let accumualtedValue = x.piece.lineStarts.getAccumulatedValue(0);
+
+				ret += buffer.substring(x.piece.offset, x.piece.offset + accumualtedValue);
+				return ret;
+			} else {
+				ret += buffer.substr(x.piece.offset, x.piece.length);
+			}
+			
+			x = x.next();
+		}
+		
+		return ret;
+		
 	}
 	
 	getOffsetAt(position: IPosition): number {
@@ -866,7 +946,7 @@ export class RBTree implements IModel {
 		let x = this.root;
 		
 		while(x !== SENTINEL) {
-			if (x.lf_left !== 0 && x.lf_left + 1 >= lineNumber) {
+			if (x.left !== SENTINEL && x.lf_left + 1 >= lineNumber) {
 				x = x.left;
 			} else if (x.lf_left + x.piece.lineFeedCnt + 1 >= lineNumber) {
 				leftLen += x.size_left;
@@ -926,6 +1006,7 @@ export class RBTree implements IModel {
 		this.root.validate();
 	}
 	
+
 	/**
 	 * 
 	 * @param tree 
@@ -950,6 +1031,68 @@ export class RBTree implements IModel {
 		}
 		
 		return null;
+	}
+	
+	nodeAt2(position: IPosition): BufferCursor {
+		let x = this.root;
+		let lineNumber = position.lineNumber;
+		let column = position.column;
+		
+		while(x !== SENTINEL) {
+			if (x.left !== SENTINEL && x.lf_left >= lineNumber - 1) {
+				x = x.left;
+			} else if (x.lf_left + x.piece.lineFeedCnt > lineNumber - 1) {
+				let prevAccumualtedValue = x.piece.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 2);
+				let accumualtedValue = x.piece.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 1);
+				
+				return {
+					node: x,
+					remainder: Math.min(prevAccumualtedValue + column - 1, accumualtedValue)
+				}
+			} else if (x.lf_left + x.piece.lineFeedCnt === lineNumber - 1) {
+				let prevAccumualtedValue = x.piece.lineStarts.getAccumulatedValue(lineNumber - x.lf_left - 2);
+				if (prevAccumualtedValue + column - 1 <= x.piece.length) {
+					return {
+						node: x,
+						remainder: prevAccumualtedValue + column - 1
+					}
+				} else {
+					column -= x.piece.length - prevAccumualtedValue;
+					break;
+				}
+			} else {
+				lineNumber -= x.lf_left + x.piece.lineFeedCnt;
+				x = x.right;
+			}
+		}
+		
+		if (x === SENTINEL) {
+			throw('not possible');
+		}
+		
+		// search in order, to find the node contains position.column
+		x = x.next();
+		while (x !== SENTINEL) {
+			
+			if (x.piece.lineFeedCnt > 0) {
+				let accumualtedValue = x.piece.lineStarts.getAccumulatedValue(0);
+				return {
+					node: x,
+					remainder: Math.min(column - 1, accumualtedValue)
+				}
+			} else {
+				if (x.piece.length >= column - 1) {
+					return {
+						node: x,
+						remainder: column - 1
+					}
+				} else {
+					column -= x.piece.length;
+				}
+			}
+			
+			x = x.next();
+		}
 	}
 	
 	offsetOfNode(node: TreeNode): number {

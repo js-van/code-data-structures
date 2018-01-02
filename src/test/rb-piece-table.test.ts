@@ -689,6 +689,225 @@ describe('prefix sum for line feed', () => {
 	});
 });
 
+
+
+describe('offset 2 position', () => {
+	it('random tests bug 1', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('huuyYzUfKOENwGgZLqn ', 0)
+		str = str.substring(0, 0) + 'huuyYzUfKOENwGgZLqn ' + str.substring(0)
+		pieceTable.delete(18, 2)
+		str = str.substring(0, 18) + str.substring(18 + 2);
+		pieceTable.delete(3, 1)
+		str = str.substring(0, 3) + str.substring(3 + 1);
+		pieceTable.delete(12, 4)
+		str = str.substring(0, 12) + str.substring(12 + 4);
+		pieceTable.insert('hMbnVEdTSdhLlPevXKF ', 3)
+		str = str.substring(0, 3) + 'hMbnVEdTSdhLlPevXKF ' + str.substring(3)
+		pieceTable.delete(22, 8)
+		str = str.substring(0, 22) + str.substring(22 + 8);
+		pieceTable.insert('S umSnYrqOmOAV\nEbZJ ', 4)
+		str = str.substring(0, 4) + 'S umSnYrqOmOAV\nEbZJ ' + str.substring(4)
+		
+		let lineFeedIndex = -1;
+		let lastLineFeedIndex = -1;
+		let lineCnt = 1;
+		
+		expect(pieceTable.getPositionAt(0)).toEqual(new Position(1, 1));
+		expect(pieceTable.getOffsetAt(new Position(1, 1))).toEqual(0);
+		
+		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+			if (lineFeedIndex + 1 === str.length) {
+				// last line feed
+				break;
+			}
+			
+			lineCnt += 1;
+			expect(pieceTable.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+			expect(pieceTable.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		}
+	});
+});
+
+describe('get text in range', () => {
+	it('getContentInRange', () => {
+		let pieceTable = new PieceTable('a\nb\nc\nde');
+		pieceTable.insert('fh\ni\njk', 8);
+		pieceTable.delete(7, 2);
+		// 'a\nb\nc\ndh\ni\njk'
+		
+		expect(pieceTable.getValueInRange({ startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 3})).toBe('a\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 2, startColumn: 1, endLineNumber: 2, endColumn: 3})).toBe('b\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 3, startColumn: 1, endLineNumber: 3, endColumn: 3})).toBe('c\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 4, startColumn: 1, endLineNumber: 4, endColumn: 4})).toBe('dh\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 5, startColumn: 1, endLineNumber: 5, endColumn: 3})).toBe('i\n');
+		expect(pieceTable.getValueInRange({ startLineNumber: 6, startColumn: 1, endLineNumber: 6, endColumn: 3})).toBe('jk');
+	});
+	
+	it('random test value in range', () => {
+		let str = '';
+		let pieceTable = new PieceTable(str);
+		
+		pieceTable.insert('ZXXY', 0)
+		str = str.substring(0, 0) + 'ZXXY' + str.substring(0)
+		pieceTable.insert('XZZY', 1)
+		str = str.substring(0, 1) + 'XZZY' + str.substring(1)
+		pieceTable.insert('\nX\n\n', 5)
+		str = str.substring(0, 5) + '\nX\n\n' + str.substring(5)
+		pieceTable.insert('\nXX\n', 3)
+		str = str.substring(0, 3) + '\nXX\n' + str.substring(3)
+		pieceTable.insert('YYYX', 12)
+		str = str.substring(0, 12) + 'YYYX' + str.substring(12)
+
+		let lines = str.split('\n');
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	});
+	it('random test value in range exception', () => {
+		let str = '';
+		let pieceTable = new PieceTable(str);
+		
+		pieceTable.insert('XZ\nZ', 0)
+		str = str.substring(0, 0) + 'XZ\nZ' + str.substring(0)
+		pieceTable.delete(0, 3)
+		str = str.substring(0, 0) + str.substring(0 + 3);
+		pieceTable.delete(0, 1)
+		str = str.substring(0, 0) + str.substring(0 + 1);
+		pieceTable.insert('ZYX\n', 0)
+		str = str.substring(0, 0) + 'ZYX\n' + str.substring(0)
+		pieceTable.delete(0, 4)
+		str = str.substring(0, 0) + str.substring(0 + 4);
+
+		pieceTable.getValueInRange({startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1});
+	});
+	
+	it('random tests bug 1', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('huuyYzUfKOENwGgZLqn ', 0)
+		str = str.substring(0, 0) + 'huuyYzUfKOENwGgZLqn ' + str.substring(0)
+		pieceTable.delete(18, 2)
+		str = str.substring(0, 18) + str.substring(18 + 2);
+		pieceTable.delete(3, 1)
+		str = str.substring(0, 3) + str.substring(3 + 1);
+		pieceTable.delete(12, 4)
+		str = str.substring(0, 12) + str.substring(12 + 4);
+		pieceTable.insert('hMbnVEdTSdhLlPevXKF ', 3)
+		str = str.substring(0, 3) + 'hMbnVEdTSdhLlPevXKF ' + str.substring(3)
+		pieceTable.delete(22, 8)
+		str = str.substring(0, 22) + str.substring(22 + 8);
+		pieceTable.insert('S umSnYrqOmOAV\nEbZJ ', 4)
+		str = str.substring(0, 4) + 'S umSnYrqOmOAV\nEbZJ ' + str.substring(4)
+		
+		let lines = str.split('\n');
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	});
+	
+	it('random tests bug 2', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('xfouRDZwdAHjVXJAMV\n ', 0)
+		str = str.substring(0, 0) + 'xfouRDZwdAHjVXJAMV\n ' + str.substring(0)
+		pieceTable.insert('dBGndxpFZBEAIKykYYx ', 16)
+		str = str.substring(0, 16) + 'dBGndxpFZBEAIKykYYx ' + str.substring(16)
+		pieceTable.delete(7, 6)
+		str = str.substring(0, 7) + str.substring(7 + 6);
+		pieceTable.delete(9, 7)
+		str = str.substring(0, 9) + str.substring(9 + 7);
+		pieceTable.delete(17, 6)
+		str = str.substring(0, 17) + str.substring(17 + 6);
+		pieceTable.delete(0, 4)
+		str = str.substring(0, 0) + str.substring(0 + 4);
+		pieceTable.insert('qvEFXCNvVkWgvykahYt ', 9)
+		str = str.substring(0, 9) + 'qvEFXCNvVkWgvykahYt ' + str.substring(9)
+		pieceTable.delete(4, 6)
+		str = str.substring(0, 4) + str.substring(4 + 6);
+		pieceTable.insert('OcSChUYT\nzPEBOpsGmR ', 11)
+		str = str.substring(0, 11) + 'OcSChUYT\nzPEBOpsGmR ' + str.substring(11)
+		pieceTable.insert('KJCozaXTvkE\nxnqAeTz ', 15)
+		str = str.substring(0, 15) + 'KJCozaXTvkE\nxnqAeTz ' + str.substring(15)
+		
+		let lines = str.split('\n');
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	});
+	
+	it('get line content', () => {
+		let pieceTable = new PieceTable('1');
+		
+		expect(pieceTable.getLineContent(1)).toBe('1');
+		pieceTable.insert('2', 1);
+		expect(pieceTable.getLineContent(1)).toBe('12');
+	});
+	
+	it('get line content basic', () => {
+		let pieceTable = new PieceTable('1\n2\n3\n4');
+		
+		expect(pieceTable.getLineContent(1)).toBe('1\n');
+		expect(pieceTable.getLineContent(2)).toBe('2\n');
+		expect(pieceTable.getLineContent(3)).toBe('3\n');
+		expect(pieceTable.getLineContent(4)).toBe('4');
+	});
+	
+	it('get line content after inserts/deletes', () => {
+		let pieceTable = new PieceTable('a\nb\nc\nde');
+		pieceTable.insert('fh\ni\njk', 8);
+		pieceTable.delete(7, 2);
+		// 'a\nb\nc\ndh\ni\njk'
+		
+		expect(pieceTable.getLineContent(1)).toBe('a\n');
+		expect(pieceTable.getLineContent(2)).toBe('b\n');
+		expect(pieceTable.getLineContent(3)).toBe('c\n');
+		expect(pieceTable.getLineContent(4)).toBe('dh\n');
+		expect(pieceTable.getLineContent(5)).toBe('i\n');
+		expect(pieceTable.getLineContent(6)).toBe('jk');
+	});
+	
+	it('random 1', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+				
+		pieceTable.insert('J eNnDzQpnlWyjmUu\ny ', 0)
+		str = str.substring(0, 0) + 'J eNnDzQpnlWyjmUu\ny ' + str.substring(0)
+		pieceTable.insert('QPEeRAQmRwlJqtZSWhQ ', 0)
+		str = str.substring(0, 0) + 'QPEeRAQmRwlJqtZSWhQ ' + str.substring(0)
+		pieceTable.delete(5, 1)
+		str = str.substring(0, 5) + str.substring(5 + 1);
+		
+		let lines = str.split('\n');
+		// expect(pieceTable.getLineCount()).toBe(lines.length);
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	});
+	
+	it('random 2', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('DZoQ tglPCRHMltejRI ', 0)
+		str = str.substring(0, 0) + 'DZoQ tglPCRHMltejRI ' + str.substring(0)
+		pieceTable.insert('JRXiyYqJ qqdcmbfkKX ', 10)
+		str = str.substring(0, 10) + 'JRXiyYqJ qqdcmbfkKX ' + str.substring(10)
+		pieceTable.delete(16, 3)
+		str = str.substring(0, 16) + str.substring(16 + 3);
+		pieceTable.delete(25, 1)
+		str = str.substring(0, 25) + str.substring(25 + 1);
+		pieceTable.insert('vH\nNlvfqQJPm\nSFkhMc ', 18)
+		str = str.substring(0, 18) + 'vH\nNlvfqQJPm\nSFkhMc ' + str.substring(18);
+		
+		let lines = str.split('\n');
+		// expect(pieceTable.getLineCount()).toBe(lines.length);
+		for (let i = 0; i < lines.length; i++) {
+			expect(pieceTable.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
+	})
+});
+
 describe('random is unsupervised', () => {
 	it('random insert delete', () => {
 		let str = '';
@@ -739,11 +958,11 @@ describe('random is unsupervised', () => {
 			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
 		}
 		
-		// let lines = str.split('\n');
+		let lines = str.split('\n');
 		// expect(pt.getLineCount()).toBe(lines.length);
-		// for (let i = 0; i < lines.length; i++) {
-		// 	expect(pt.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
-		// 	expect(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
-		// }
+		for (let i = 0; i < lines.length; i++) {
+			expect(pt.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+			expect(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+		}
 	});
 });
