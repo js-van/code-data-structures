@@ -9,3 +9,9 @@ Since I now use Red Black tree to manage the nodes of Piece Table and use Prefix
 ## push 10000 inserts to empty file
 - piece table with rbtree 	x 4.62 ops/sec
 - edcore 					x 0.14 ops/sec
+
+# Get Line Content
+piece-table 				x 78.63 ops/sec ±2.96% (20 runs sampled)
+lines-model 				x 261 ops/sec ±2.08% (20 runs sampled)
+edcore 						x 35.65 ops/sec ±2.43% (20 runs sampled)
+piece-table with rbtree 	x 100 ops/sec ±2.89% (20 runs sampled)

@@ -1,6 +1,6 @@
 const fs = require("fs");
 const stream = require('stream');
-import { RBTree } from '../../rbTree'
+import { TextBuffer } from '../../rbTree'
 import * as strings from '../../modelbuilder/strings';
 
 module.exports = function (input) {
@@ -11,7 +11,7 @@ module.exports = function (input) {
 			let fileName = `samples/${input}`;
 			const stream = fs.createReadStream(fileName, { encoding: 'utf8'});
 			let done = false;
-			let builder = new RBTree('');
+			let builder = new TextBuffer('');
 			let len = 0;
 			let containsRTL = false;
 			let isBasicASCII = true;

@@ -1,7 +1,7 @@
 import Benchmark = require('benchmark');
 import fs = require("fs");
 import { PieceTable } from '../piece-table';
-import { RBTree } from '../rbTree';
+import { TextBuffer } from '../rbTree';
 import { LinesModel } from '../lines-model';
 import { randomInt, randomStr } from '../util';
 import { EdBuffer, EdBufferBuilder } from 'edcore';
@@ -48,7 +48,7 @@ async function readFileAsync(input: string): Promise<EdBuffer> {
 readFileAsync('empty.ts').then((edBuffer) => {
 	let str = 'a';
 	var pt = new PieceTable('a');
-	var prRb = new RBTree('a');
+	var prRb = new TextBuffer('a');
 	let ptOperations = [];
 	for (let i = 0; i < 10000; i++) {
 		if (Math.random() < 2) {

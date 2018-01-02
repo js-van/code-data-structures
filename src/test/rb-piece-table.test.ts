@@ -1,4 +1,4 @@
-import { RBTree as PieceTable, SENTINEL, error } from '../rbTree';
+import { TextBuffer as PieceTable, SENTINEL, error } from '../rbTree';
 import { IPosition, Position } from '../position';
 import { randomInt, randomStr } from '../util';
 
