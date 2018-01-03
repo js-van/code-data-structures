@@ -1,6 +1,6 @@
 import { randomInt, randomStr } from '../util';
 
-function randomOperations (str: string) {
+export function randomOperations (str: string) {
 	let ops = [];
 	
 	for (let i = 0; i < 1000; i++) {
@@ -30,5 +30,3 @@ function randomOperations (str: string) {
 	
 	return ops;
 }
-
-module.exports.randomOperations = randomOperations;

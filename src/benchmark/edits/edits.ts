@@ -70,7 +70,7 @@ module.exports = async function (input: string){
 				builder.Finish();
 				let edCore = builder.Build();
 				// resolve();
-				let ops = random.randomOperations()
+				// let ops = random.randomOperations(edCore.)
 			}
 		});
 	});
