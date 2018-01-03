@@ -3,11 +3,6 @@ import stream = require('stream');
 import { ModelBuilder } from '../../modelBuilder/linesModelBuilder';
 import { EdBufferBuilder } from 'edcore';
 
-const inputs = [
-	// "checker.ts",
-	"heapsnapshot.txt"
-];
-
 module.exports = function (input) {
 	return {
 		name: "edcore",

@@ -1,10 +1,11 @@
 import Benchmark = require('benchmark');
 import fs = require("fs");
-import { PieceTable } from '../piece-table';
-import { TextBuffer } from '../rbTree';
-import { LinesModel } from '../lines-model';
-import { randomInt, randomStr } from '../util';
+import { PieceTable } from '../../piece-table';
+import { TextBuffer } from '../../rbTree';
+import { LinesModel } from '../../lines-model';
+import { randomInt, randomStr } from '../../util';
 import { EdBuffer, EdBufferBuilder } from 'edcore';
+import random = require('../randomOperations');
 
 const suite = new Benchmark.Suite('getLineContent', {
 	onCycle: function (event) {
@@ -45,10 +46,40 @@ async function readFileAsync(input: string): Promise<EdBuffer> {
 	});
 }
 
+module.exports = async function (input: string){
+	return new Promise<any>((resolve, reject) => {
+		let fileName = `samples/${input}`;
+		const stream = fs.createReadStream(fileName, { encoding: 'utf8' });
+		let done = false;
+		let builder = new EdBufferBuilder();
+
+		stream.on('data', (chunk) => {
+			builder.AcceptChunk(chunk);
+		});
+
+		stream.on('error', (error) => {
+			if (!done) {
+				done = true;
+				reject();
+			}
+		});
+
+		stream.on('end', () => {
+			if (!done) {
+				done = true;
+				builder.Finish();
+				let edCore = builder.Build();
+				// resolve();
+				let ops = random.randomOperations()
+			}
+		});
+	});
+}
+
 readFileAsync('empty.ts').then((edBuffer) => {
-	let str = 'a';
-	var pt = new PieceTable('a');
-	var prRb = new TextBuffer('a');
+	let str = '';
+	var pt = new PieceTable('');
+	var prRb = new TextBuffer('');
 	let ptOperations = [];
 	for (let i = 0; i < 1000; i++) {
 		if (Math.random() < .5) {
@@ -60,21 +91,17 @@ readFileAsync('empty.ts').then((edBuffer) => {
 				text: text,
 				pos: pos
 			});
-			// pt.insert(text, pos);
-			// edBuffer.ReplaceOffsetLen([{offset: pos, length: 0, text: text}]);
 			str = str.substring(0, pos) + text + str.substring(pos);
 		} else {
 			// delete
 			let pos = randomInt(str.length);
 			let length = Math.min(str.length - pos, Math.floor(Math.random() * 10))
 			let deletedText = str.substr(pos, length);
-			// pt.delete(pos, length);
 			ptOperations.push({
 				insert: false,
 				length: length,
 				pos: pos
 			});
-			// edBuffer.ReplaceOffsetLen([{offset: pos, length: length, text: ''}]);
 			str = str.substring(0, pos) + str.substring(pos + length);
 		}
 	}

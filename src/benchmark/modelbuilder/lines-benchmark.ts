@@ -2,11 +2,6 @@ import fs = require("fs");
 import stream = require('stream');
 import { ModelBuilder } from '../../modelBuilder/linesModelBuilder';
 
-const inputs = [
-	// "checker.ts",
-	"heapsnapshot.txt"
-];
-
 module.exports = function (input) {
 	return {
 		name: "model lines",

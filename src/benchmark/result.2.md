@@ -10,7 +10,7 @@ Since I now use Red Black tree to manage the nodes of Piece Table and use Prefix
 - piece table with rbtree 	x 4.62 ops/sec
 - edcore 					x 0.14 ops/sec
 
-# Get Line Content
+# Get Line Content checker.ts 25000 op 
 piece-table 				x 78.63 ops/sec ±2.96% (20 runs sampled)
 lines-model 				x 261 ops/sec ±2.08% (20 runs sampled)
 edcore 						x 35.65 ops/sec ±2.43% (20 runs sampled)
