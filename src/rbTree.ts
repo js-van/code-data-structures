@@ -1,7 +1,7 @@
 import { IModel } from './piece-table';
 import { Range, IRange } from './range';
 import { IPosition, Position } from './position';
-import { PrefixSumComputer } from './prefixSumComputer';
+import { PrefixSumComputer, PrefixSumIndexOfResult } from './prefixSumComputer';
 import { posix } from 'path';
 
 export const enum NodeColor {
@@ -690,19 +690,13 @@ export class TextBuffer {
 					// we need to split node.
 					// create the new piece first as we are reading current node info before mdofiying it.
 					let newRightPiece = new Piece(node.piece.isOriginalBuffer, node.piece.offset + offset - nodeOffsetInDocument, nodeOffsetInDocument + node.piece.length - offset, node.piece.lineFeedCnt - insertPos.index, node.piece.lineStarts.values);
-					newRightPiece.lineStarts.changeValue(insertPos.index, newRightPiece.lineStarts.values[insertPos.index] - insertPos.remainder);
-
-					if (insertPos.index > 0) {
-						newRightPiece.lineStarts.removeValues(0, insertPos.index);
-					}
+					this.sliceLeftPrefixSumComputer(newRightPiece.lineStarts, insertPos);
 
 					// update node metadata
 					node.piece.length -= newRightPiece.length;
 					let lf_delta = insertPos.index - node.piece.lineFeedCnt;
 					node.piece.lineFeedCnt = insertPos.index;
-					node.piece.lineStarts.removeValues(insertPos.index + 1, node.piece.lineStarts.values.length - insertPos.index - 1);
-					node.piece.lineStarts.changeValue(insertPos.index, insertPos.remainder);
-
+					this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
 
 					updateMetadata(this, node, -newRightPiece.length, lf_delta);
 
@@ -746,19 +740,11 @@ export class TextBuffer {
 						return;
 					}
 
-					// if (cnt > length) {
-					// 	throw('not possible, it is crazy');
-					// }
-
 					// delete head
 					startNode.piece.length -= cnt;
 					startNode.piece.offset += cnt;
 					startNode.piece.lineFeedCnt -= endSplitPos.index;
-					startNode.piece.lineStarts.changeValue(endSplitPos.index, startNode.piece.lineStarts.values[endSplitPos.index] - endSplitPos.remainder);
-
-					if (endSplitPos.index > 0) {
-						startNode.piece.lineStarts.removeValues(0, endSplitPos.index);
-					}
+					this.sliceLeftPrefixSumComputer(startNode.piece.lineStarts, endSplitPos);
 					updateMetadata(this, startNode, -cnt, -endSplitPos.index);
 					return;
 				}
@@ -768,8 +754,7 @@ export class TextBuffer {
 					startNode.piece.length -= cnt;
 					let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 					startNode.piece.lineFeedCnt = splitPos.index;
-					startNode.piece.lineStarts.removeValues(splitPos.index + 1, startNode.piece.lineStarts.values.length - splitPos.index - 1);
-					startNode.piece.lineStarts.changeValue(splitPos.index, splitPos.remainder);
+					this.sliceRightPrefixSumComputer(startNode.piece.lineStarts, splitPos);
 					updateMetadata(this, startNode, -cnt, lf_delta);
 					return;
 				}
@@ -814,8 +799,7 @@ export class TextBuffer {
 			startNode.piece.length = offset - startNodeOffsetInDocument;
 			let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 			startNode.piece.lineFeedCnt = splitPos.index;
-			startNode.piece.lineStarts.removeValues(splitPos.index + 1, startNode.piece.lineStarts.values.length - splitPos.index - 1);
-			startNode.piece.lineStarts.changeValue(splitPos.index, splitPos.remainder);
+			this.sliceRightPrefixSumComputer(startNode.piece.lineStarts, splitPos);
 			updateMetadata(this, startNode, -(startNodeOffsetInDocument + length - offset), lf_delta);
 
 			// update lastTouchedNode
@@ -823,15 +807,13 @@ export class TextBuffer {
 			endNode.piece.offset += offset + cnt - endNodeOffsetInDocument;
 			let endSplitPos = endNode.piece.lineStarts.getIndexOf(offset - endNodeOffsetInDocument + cnt);
 			endNode.piece.lineFeedCnt -= endSplitPos.index;
-			endNode.piece.lineStarts.changeValue(endSplitPos.index, endNode.piece.lineStarts.values[endSplitPos.index] - endSplitPos.remainder);
-			endNode.piece.lineStarts.removeValues(0, endSplitPos.index);
+			this.sliceLeftPrefixSumComputer(endNode.piece.lineStarts, endSplitPos);
 			updateMetadata(this, endNode, -(offset + cnt - endNodeOffsetInDocument), -endSplitPos.index);
 
 			let nodesToDel = [];
 			if (endNode.piece.length === 0) {
 				nodesToDel.push(endNode);
 			}
-
 
 			let secondNode = startNode.next();
 			if (secondNode !== endNode) {
@@ -844,10 +826,20 @@ export class TextBuffer {
 				rbDelete(this, nodesToDel[i]);
 			}
 		}
-
-		// this.validate();
 	}
-
+	
+	sliceRightPrefixSumComputer(prefixSum: PrefixSumComputer, position: PrefixSumIndexOfResult): void {
+		prefixSum.removeValues(position.index + 1, prefixSum.values.length - position.index - 1);
+		prefixSum.changeValue(position.index, position.remainder);
+	}
+	
+	sliceLeftPrefixSumComputer(prefixSum: PrefixSumComputer, position: PrefixSumIndexOfResult): void {
+		prefixSum.changeValue(position.index, prefixSum.values[position.index] - position.remainder);
+		if (position.index > 0) {
+			prefixSum.removeValues(0, position.index);
+		}
+	}
+	
 	getLinesContent() {
 		return this.getContentOfSubTree(this.root);
 	}
