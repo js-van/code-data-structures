@@ -14,22 +14,9 @@ Result:
 
 edcore is the fastest without any doubt as it doesn't do any string concatenation, nor line splits.
 
-## I adopted rbTree in piece table and insert each chunk as new content
-
-model lines - 'checker.ts'  			x 57.97 ops/sec ±4.38% (20 runs sampled)
-model lines - 'heapsnapshot.txt'  		x 0.49 ops/sec ±2.00% (20 runs sampled)
-piece table - 'checker.ts'  			x 145 ops/sec ±3.86% (20 runs sampled)
-piece table - 'heapsnapshot.txt'  		x 1.93 ops/sec ±7.31% (20 runs sampled)
-piece table rb - 'checker.ts'  			x 243 ops/sec ±2.49% (20 runs sampled)
-piece table rb - 'heapsnapshot.txt'  	x 3.06 ops/sec ±4.37% (20 runs sampled)
-edcore - 'checker.ts'  					x 149 ops/sec ±1.69% (20 runs sampled)
-edcore - 'heapsnapshot.txt'  			x 2.81 ops/sec ±2.32% (20 runs sampled)
-
-data for piece table with rb is not accurate as I didn't calculate line break offsets yet.
-
 # getLineContent
 
-## First load
+## Wrong metrics
 - Checker.ts 25000 lines
 
 - piece-table getLineContent x 132 ops/sec ±3.61% (20 runs sampled)
@@ -38,7 +25,7 @@ data for piece table with rb is not accurate as I didn't calculate line break of
 
 lines-model is the fatest as each query is just acessing a pointer. Piece table is faster than edcore as it's a single string, we fully rely on the performance of substring. edcore is 3 or 4 times slower than piece table as it has around 20 nodes (1.3M file, default 64kb chunk size) and a line query is O(logN) in average.
 
-## get line content and operate
+## get line content
 - checker.ts
 
 we tried to get char code of every character, this is how we build the view line. This is the real time of fetching the text of a line and generating text for HTML.
@@ -70,10 +57,9 @@ I guess if the content change is small, it's always tweaking string in the same 
 
 ## getLineContent after 10000 edits
 
-- edcore getLineContent x 52.80 ops/sec ±14.11% (2 runs sampled)
 - piece-table with 10000 edits getLineContent x 0.09 ops/sec ±31.65% (2 runs sampled)
 - edcore with 10000 edits getLineContent x 45.06 ops/sec ±90.02% (2 runs sampled)
-j
+
 Funny thing is, as edcore only holds limited nodes (fileSize/chunkSize), the performance of getLineContent doesn't really change. Let's how we can optimize piece table to match with edcore.
 
 piece table adds 2 nodes when insert, 1 node when delete in average. So 10000 edits may lead to 15000 nodes in total. Current getLineContent is O(N), a optimized balanced tree can be O(logN), we can improve the speed by 15000/log(15000) ~= 122 times. the piece table getLineContent can be 11 opts/sec.

@@ -2,7 +2,7 @@ Since I now use Red Black tree to manage the nodes of Piece Table and use Prefix
 
 # Edits
 
-## push 10000 inserts to empty file
+## push 1000 inserts to empty file
 - piece table with rbtree 	x 4.56 ops/sec
 - edcore 					x 0.07 ops/sec
 

@@ -393,7 +393,7 @@ describe('prefix sum for line feed', () => {
 	it('basic', () => {
 		let pieceTable = new PieceTable('1\n2\n3\n4');
 		
-		// expect(pieceTable.getLineCount()).toBe(4);
+		expect(pieceTable.getLineCount()).toBe(4);
 		expect(pieceTable.getPositionAt(0)).toEqual(new Position(1, 1));
 		expect(pieceTable.getPositionAt(1)).toEqual(new Position(1, 2));
 		expect(pieceTable.getPositionAt(2)).toEqual(new Position(2, 1));
@@ -415,7 +415,7 @@ describe('prefix sum for line feed', () => {
 		let pieceTable = new PieceTable('a\nb\nc\nde');
 		pieceTable.insert('fh\ni\njk', 8);
 		
-		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getLineCount()).toBe(6);
 		expect(pieceTable.getPositionAt(9)).toEqual(new Position(4, 4));
 		
 		expect(pieceTable.getOffsetAt({ lineNumber: 1, column: 1 })).toBe(0);
@@ -425,7 +425,7 @@ describe('prefix sum for line feed', () => {
 		let pieceTable = new PieceTable('a\nb\nc\nde');
 		pieceTable.insert('fh\ni\njk', 7);
 		
-		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getLineCount()).toBe(6);
 		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
 		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
 		expect(pieceTable.getPositionAt(8)).toEqual(new Position(4, 3));
@@ -448,7 +448,7 @@ describe('prefix sum for line feed', () => {
 		pieceTable.delete(7, 2);
 		
 		expect(pieceTable.getLinesContent()).toBe('a\nb\nc\ndh\ni\njk')
-		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getLineCount()).toBe(6);
 		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
 		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
 		expect(pieceTable.getPositionAt(8)).toEqual(new Position(4, 3));
@@ -472,7 +472,7 @@ describe('prefix sum for line feed', () => {
 		pieceTable.delete(7, 2);
 		
 		expect(pieceTable.getLinesContent()).toBe('a\nb\nc\ndh\ni\njk')
-		// expect(pieceTable.getLineCount()).toBe(6);
+		expect(pieceTable.getLineCount()).toBe(6);
 		expect(pieceTable.getPositionAt(6)).toEqual(new Position(4, 1));
 		expect(pieceTable.getPositionAt(7)).toEqual(new Position(4, 2));
 		expect(pieceTable.getPositionAt(8)).toEqual(new Position(4, 3));
@@ -880,7 +880,7 @@ describe('get text in range', () => {
 		str = str.substring(0, 5) + str.substring(5 + 1);
 		
 		let lines = str.split('\n');
-		// expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
 		for (let i = 0; i < lines.length; i++) {
 			expect(pieceTable.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
 		}
@@ -901,7 +901,7 @@ describe('get text in range', () => {
 		str = str.substring(0, 18) + 'vH\nNlvfqQJPm\nSFkhMc ' + str.substring(18);
 		
 		let lines = str.split('\n');
-		// expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
 		for (let i = 0; i < lines.length; i++) {
 			expect(pieceTable.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
 		}
@@ -959,7 +959,7 @@ describe('random is unsupervised', () => {
 		}
 		
 		let lines = str.split('\n');
-		// expect(pt.getLineCount()).toBe(lines.length);
+		expect(pt.getLineCount()).toBe(lines.length);
 		for (let i = 0; i < lines.length; i++) {
 			expect(pt.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
 			expect(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));

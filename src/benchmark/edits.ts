@@ -14,7 +14,7 @@ const suite = new Benchmark.Suite('getLineContent', {
 
 const defaultOptions = {
 	maxTime: 0,
-	minSamples: 1
+	minSamples: 20
 };
 
 async function readFileAsync(input: string): Promise<EdBuffer> {
@@ -50,8 +50,8 @@ readFileAsync('empty.ts').then((edBuffer) => {
 	var pt = new PieceTable('a');
 	var prRb = new TextBuffer('a');
 	let ptOperations = [];
-	for (let i = 0; i < 10000; i++) {
-		if (Math.random() < 2) {
+	for (let i = 0; i < 1000; i++) {
+		if (Math.random() < .5) {
 			// insert
 			let text = randomStr(100);
 			let pos = randomInt(str.length + 1);

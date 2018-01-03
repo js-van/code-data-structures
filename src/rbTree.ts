@@ -855,7 +855,7 @@ export class TextBuffer {
 	getLineCount(): number {
 		let x = this.root;
 
-		let ret = 0;
+		let ret = 1;
 		while (x !== SENTINEL) {
 			ret += x.lf_left + x.piece.lineFeedCnt;
 			x = x.right;
@@ -900,7 +900,7 @@ export class TextBuffer {
 
 		return ret;
 	}
-
+	
 	getLineContent(lineNumber: number): string {
 		let x = this.root;
 
