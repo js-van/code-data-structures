@@ -554,17 +554,19 @@ export class TreeNode {
 		}
 	}
 
-	public print(indent: number = 0) {
+	public print(tree: TextBuffer,indent: number = 0) {
 		if (!this.piece) {
 			return;
 		}
+		
+		let content = tree.getNodeContent(this).replace(/\n/g, '\\n').replace(/\r/g, '\\r');
 
-		debug(`${this.color === NodeColor.Red ? 'R' : 'B'} (${this.piece.isOriginalBuffer ? 'Original' : 'Changed'}, left: ${this.size_left}, offsetInBuf: ${this.piece.offset}, len: ${this.piece.length})`, indent);
+		debug(`${this.color === NodeColor.Red ? 'R' : 'B'} (${this.piece.isOriginalBuffer ? 'Original' : 'Changed'}, left: ${this.size_left}, lf_left: ${this.lf_left}, offsetInBuf: ${this.piece.offset}, len: ${this.piece.length}, content: '${content}')`, indent);
 		if (this.left && this.left.piece)
 		{
 			debug('--- left tree:', indent);
 			++indent;
-			this.left.print(indent);
+			this.left.print(tree, indent);
 			--indent;
 		}
 
@@ -572,7 +574,7 @@ export class TreeNode {
 		{
 			debug('--- right tree:', indent);
 			++indent;
-			this.right.print(indent);
+			this.right.print(tree, indent);
 			--indent;
 		}
 	}
@@ -655,20 +657,19 @@ export class TextBuffer {
 
 		if (this.root !== SENTINEL) {
 			let { node, remainder } = this.nodeAt(offset);
-
-			// if (!node) {
-			// 	this.nodeAt(offset);
-			// 	throw('we are in trouble');
-			// }
 			let insertPos = node.piece.lineStarts.getIndexOf(remainder);
 
 			let nodeOffsetInDocument = this.offsetOfNode(node);
 			const startOffset = this._changeBuffer.length;
-			this._changeBuffer += value;
 
-			if (!node.piece.isOriginalBuffer && (node.piece.offset + node.piece.length === this._changeBuffer.length - value.length) && (nodeOffsetInDocument + node.piece.length === offset) ) {
-				// append content to this node
-				// we don't want to keep adding node when users simply type in sequence.
+			if (!node.piece.isOriginalBuffer && (node.piece.offset + node.piece.length === this._changeBuffer.length ) && (nodeOffsetInDocument + node.piece.length === offset) ) {
+				// append content to this node, we don't want to keep adding node when users simply type in sequence
+				// unless we want to make the structure immutable
+				if (this.adjustCarriageReturnFromNext(value, node)) {
+					value += '\n';
+				}
+				
+				this._changeBuffer += value;
 				node.piece.length += value.length;
 				const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
 				node.piece.lineFeedCnt += lineFeedCount;
@@ -679,30 +680,122 @@ export class TextBuffer {
 				}
 				updateMetadata(this, node, value.length, lineFeedCount);
 			} else {
-				const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
-				let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
-
 				if (nodeOffsetInDocument === offset) {
 					// we are inserting content to the beginning of node
-					// insert to its left
+					let nodesToDel = [];
+					if (value.charCodeAt(value.length -1) === 13) {
+						// inserted content ends with \r
+						if (node !== SENTINEL) {
+							if (this.nodeCharCodeAt(node, 0) === 10) {
+								// move `\n` forward
+								value += '\n';
+								
+								node.piece.offset += 1;
+								node.piece.length -= 1;
+								node.piece.lineFeedCnt -= 1;
+								node.piece.lineStarts.removeValues(0, 1); // remove the first line, which is empty.
+								updateMetadata(this, node, -1, -1);
+								
+								if (node.piece.length === 0) {
+									nodesToDel.push(node);
+								}
+							}
+						}
+					}
+					
+					this._changeBuffer += value;
+					const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
+					let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
+
 					rbInsertLeft(this, node, newPiece);
+					
+					for (let i = 0; i < nodesToDel.length; i++) {
+						rbDelete(this, nodesToDel[i]);
+					}
 				} else if (nodeOffsetInDocument + node.piece.length > offset) {
+					let nodesToDel = [];
+					
 					// we need to split node.
+					let headOfRight = this.nodeCharCodeAt(node, offset - nodeOffsetInDocument);
+					let tailOfLeft = this.nodeCharCodeAt(node, offset - nodeOffsetInDocument - 1);
+					let newRightPiece: Piece;
+					
 					// create the new piece first as we are reading current node info before mdofiying it.
-					let newRightPiece = new Piece(node.piece.isOriginalBuffer, node.piece.offset + offset - nodeOffsetInDocument, nodeOffsetInDocument + node.piece.length - offset, node.piece.lineFeedCnt - insertPos.index, node.piece.lineStarts.values);
-					this.sliceLeftPrefixSumComputer(newRightPiece.lineStarts, insertPos);
-
+					
+					if (value.charCodeAt(value.length - 1) === 13 /** \r */ && headOfRight === 10 /** \n */) {
+						newRightPiece = new Piece(
+							node.piece.isOriginalBuffer,
+							node.piece.offset + offset - nodeOffsetInDocument + 1,
+							nodeOffsetInDocument + node.piece.length - offset - 1,
+							node.piece.lineFeedCnt - insertPos.index - 1,
+							node.piece.lineStarts.values
+						);
+						newRightPiece.lineStarts.removeValues(0, insertPos.index + 1);
+						value += '\n';
+					} else {
+						newRightPiece = new Piece(
+							node.piece.isOriginalBuffer,
+							node.piece.offset + offset - nodeOffsetInDocument,
+							nodeOffsetInDocument + node.piece.length - offset,
+							node.piece.lineFeedCnt - insertPos.index,
+							node.piece.lineStarts.values
+						);
+						this.sliceLeftPrefixSumComputer(newRightPiece.lineStarts, insertPos);
+					}
+					
 					// update node metadata
-					node.piece.length -= newRightPiece.length;
-					let lf_delta = insertPos.index - node.piece.lineFeedCnt;
-					node.piece.lineFeedCnt = insertPos.index;
-					this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
+					
+					if (tailOfLeft === 13 /** \r */ && value.charCodeAt(0) === 10/** \n */) {
+						let delta = (offset - nodeOffsetInDocument - 1) - node.piece.length;
+						node.piece.length = offset - nodeOffsetInDocument - 1;
+						
+						// let lf_delta = insertPos.index - node.piece.lineFeedCnt - 1;
+						// node.piece.lineFeedCnt = insertPos.index - 1;
+						// node.piece.lineStarts.removeValues(insertPos.index, node.piece.lineStarts.values.length - insertPos.index);
+						// updateMetadata(this, node, -newRightPiece.length - 1, lf_delta);
+						
+						let lf_delta = insertPos.index - node.piece.lineFeedCnt;
+						node.piece.lineFeedCnt = insertPos.index;
+						insertPos.remainder -= 1;
+						this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
+						updateMetadata(this, node, delta, lf_delta);	
+						
+						value = '\r' + value;
+						
+						if (node.piece.length === 0) {
+							nodesToDel.push(node);
+						}
+					} else {
+						let delta = (offset - nodeOffsetInDocument) - node.piece.length;
+						node.piece.length = offset - nodeOffsetInDocument;
+						let lf_delta = insertPos.index - node.piece.lineFeedCnt;
+						node.piece.lineFeedCnt = insertPos.index;
+						this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
+						updateMetadata(this, node, delta, lf_delta);						
+					}
+					
+					this._changeBuffer += value;
+					const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
+					let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
 
-					updateMetadata(this, node, -newRightPiece.length, lf_delta);
-
-					rbInsertRight(this, node, newRightPiece);
+					if (newRightPiece.length > 0) {
+						rbInsertRight(this, node, newRightPiece);
+					}
 					rbInsertRight(this, node, newPiece);
+					for (let i = 0; i < nodesToDel.length; i++) {
+						rbDelete(this, nodesToDel[i]);
+					}
 				} else {
+					// we are inserting to the right of this node.
+					if (this.adjustCarriageReturnFromNext(value, node)) {
+						value += '\n';
+					}
+					
+					this._changeBuffer += value;
+
+					const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
+					let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
+	
 					rbInsertRight(this, node, newPiece);
 				}
 			}
@@ -715,8 +808,6 @@ export class TextBuffer {
 
 			rbInsertLeft(this, null, piece);
 		}
-		// this.validate();
-		// this.print();
 	}
 
 	delete(offset: number, cnt: number): void {
@@ -801,7 +892,11 @@ export class TextBuffer {
 			startNode.piece.lineFeedCnt = splitPos.index;
 			this.sliceRightPrefixSumComputer(startNode.piece.lineStarts, splitPos);
 			updateMetadata(this, startNode, -(startNodeOffsetInDocument + length - offset), lf_delta);
-
+			let nodesToDel = [];
+			if (startNode.piece.length === 0) {
+				nodesToDel.push(startNode);
+			}
+			
 			// update lastTouchedNode
 			endNode.piece.length -= offset + cnt - endNodeOffsetInDocument;
 			endNode.piece.offset += offset + cnt - endNodeOffsetInDocument;
@@ -810,7 +905,6 @@ export class TextBuffer {
 			this.sliceLeftPrefixSumComputer(endNode.piece.lineStarts, endSplitPos);
 			updateMetadata(this, endNode, -(offset + cnt - endNodeOffsetInDocument), -endSplitPos.index);
 
-			let nodesToDel = [];
 			if (endNode.piece.length === 0) {
 				nodesToDel.push(endNode);
 			}
@@ -840,6 +934,57 @@ export class TextBuffer {
 		}
 	}
 	
+	adjustCarriageReturnFromNext(value: string, node: TreeNode): boolean {
+		if (value.charCodeAt(value.length - 1) === 13) {
+			// inserted content ends with \r
+			let nextNode = node.next();
+			if (nextNode !== SENTINEL) {
+				if (this.nodeCharCodeAt(nextNode, 0) === 10) {
+					// move `\n` forward
+					value += '\n';
+					
+					if (nextNode.piece.length === 1) {
+						rbDelete(this, nextNode);
+					} else {
+						nextNode.piece.offset += 1;
+						nextNode.piece.length -= 1;
+						nextNode.piece.lineFeedCnt -= 1;
+						nextNode.piece.lineStarts.removeValues(0, 1); // remove the first line, which is empty.
+						updateMetadata(this, nextNode, -1, -1);
+					}
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	adjustCarriageReturn(value: string, node: TreeNode): boolean {
+		if (value.charCodeAt(value.length -1) === 13) {
+			// inserted content ends with \r
+			if (node !== SENTINEL) {
+				if (this.nodeCharCodeAt(node, 0) === 10) {
+					// move `\n` forward
+					value += '\n';
+					
+					// if (node.piece.length === 1) {
+					// 	rbDelete(this, node);	
+					// } else {
+						node.piece.offset += 1;
+						node.piece.length -= 1;
+						node.piece.lineFeedCnt -= 1;
+						node.piece.lineStarts.removeValues(0, 1); // remove the first line, which is empty.
+						updateMetadata(this, node, -1, -1);
+					// }
+					
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	getLinesContent() {
 		return this.getContentOfSubTree(this.root);
 	}
@@ -1002,7 +1147,7 @@ export class TextBuffer {
 
 	print() {
 		if (this.root) {
-			this.root.print();
+			this.root.print(this);
 		}
 	}
 
@@ -1113,6 +1258,19 @@ export class TextBuffer {
 		}
 
 		return pos;
+	}
+	
+	getNodeContent(node: TreeNode): string {
+		let buffer = node.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+		let currentContent = buffer.substr(node.piece.offset, node.piece.length);
+		
+		return currentContent;
+	}
+	
+	nodeCharCodeAt(node: TreeNode, offset: number): number {
+		let buffer = node.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
+		
+		return buffer.charCodeAt(node.piece.offset + offset);
 	}
 
 	private getContentOfSubTree(node: TreeNode): string {

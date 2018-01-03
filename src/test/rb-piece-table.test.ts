@@ -2,6 +2,28 @@ import { TextBuffer as PieceTable, SENTINEL, error } from '../rbTree';
 import { IPosition, Position } from '../position';
 import { randomInt, randomStr } from '../util';
 
+function trimLineFeed(text: string): string {
+	if (text.length === 0) {
+		return text;
+	}
+	
+	if (text.length === 1) {
+		if (text.charCodeAt(text.length - 1) === 10 || text.charCodeAt(text.length - 1) === 13) {
+			return '';
+		}
+		return text;
+	}
+	
+	if (text.charCodeAt(text.length - 1) === 10) {
+		if (text.charCodeAt(text.length - 2) === 13) {
+			return text.slice(0, -2);
+		}
+		return text.slice(0, -1);
+	}
+	
+	return text;
+}
+
 describe('inserts and deletes', () => {
 	it('basic insert/delete', () => {
 		let pieceTable = new PieceTable('This is a document with some text.');
@@ -350,18 +372,163 @@ describe('inserts and deletes', () => {
 		pieceTable.delete(6, 2)
 		str = str.substring(0, 6) + str.substring(6 + 2);
 	})
+	
+	it('random insert/delete \\r bug 1', () => {
+		let str = 'a'
+		let pieceTable = new PieceTable('a')
+		pieceTable.delete(0, 1)
+		str = str.substring(0, 0) + str.substring(0 + 1);
+		pieceTable.insert('\r\r\n\n', 0)
+		str = str.substring(0, 0) + '\r\r\n\n' + str.substring(0)
+		pieceTable.delete(3, 1)
+		str = str.substring(0, 3) + str.substring(3 + 1);
+		pieceTable.insert('\n\n\ra', 2)
+		str = str.substring(0, 2) + '\n\n\ra' + str.substring(2)
+		pieceTable.delete(4, 3)
+		str = str.substring(0, 4) + str.substring(4 + 3);
+		pieceTable.insert('\na\r\r', 2)
+		str = str.substring(0, 2) + '\na\r\r' + str.substring(2)
+		pieceTable.insert('\ra\n\n', 6)
+		str = str.substring(0, 6) + '\ra\n\n' + str.substring(6)
+		pieceTable.insert('aa\n\n', 0)
+		str = str.substring(0, 0) + 'aa\n\n' + str.substring(0)
+		pieceTable.insert('\n\na\r', 5)
+		str = str.substring(0, 5) + '\n\na\r' + str.substring(5)
+		
+		expect(pieceTable.getLinesContent()).toBe(str);
+	})
+	
+	it('random insert/delete \\r bug 2', () => {
+		let str = 'a'
+		let pieceTable = new PieceTable('a')
+		pieceTable.insert('\naa\r', 1)
+		str = str.substring(0, 1) + '\naa\r' + str.substring(1)
+		pieceTable.delete(0, 4)
+		str = str.substring(0, 0) + str.substring(0 + 4);
+		pieceTable.insert('\r\r\na', 1)
+		str = str.substring(0, 1) + '\r\r\na' + str.substring(1)
+		pieceTable.insert('\n\r\ra', 2)
+		str = str.substring(0, 2) + '\n\r\ra' + str.substring(2)
+		pieceTable.delete(4, 1)
+		str = str.substring(0, 4) + str.substring(4 + 1);
+
+		pieceTable.insert('\r\n\r\r', 8)
+		str = str.substring(0, 8) + '\r\n\r\r' + str.substring(8)
+
+		pieceTable.insert('\n\n\na', 7)
+		str = str.substring(0, 7) + '\n\n\na' + str.substring(7)
+		expect(pieceTable.getLinesContent()).toBe(str);
+
+		pieceTable.insert('a\n\na', 13)
+		str = str.substring(0, 13) + 'a\n\na' + str.substring(13)
+
+		pieceTable.delete(17, 3)
+		str = str.substring(0, 17) + str.substring(17 + 3);
+		pieceTable.insert('a\ra\n', 2)
+		str = str.substring(0, 2) + 'a\ra\n' + str.substring(2)
+		
+		// pieceTable.print();
+		expect(pieceTable.getLinesContent()).toBe(str);
+	})
+	
+	
+	it('random insert/delete \\r bug 3', () => {
+		let str = 'a'
+		let pieceTable = new PieceTable('a')
+		pieceTable.insert('\r\na\r', 0)
+		str = str.substring(0, 0) + '\r\na\r' + str.substring(0)
+		pieceTable.delete(2, 3)
+		str = str.substring(0, 2) + str.substring(2 + 3);
+		pieceTable.insert('a\r\n\r', 2)
+		str = str.substring(0, 2) + 'a\r\n\r' + str.substring(2)
+		pieceTable.delete(4, 2)
+		str = str.substring(0, 4) + str.substring(4 + 2);
+		
+		pieceTable.insert('a\n\r\n', 4)
+		str = str.substring(0, 4) + 'a\n\r\n' + str.substring(4)
+		pieceTable.insert('aa\n\r', 1)
+		str = str.substring(0, 1) + 'aa\n\r' + str.substring(1)
+		pieceTable.insert('\na\r\n', 7)
+		str = str.substring(0, 7) + '\na\r\n' + str.substring(7)
+		pieceTable.insert('\n\na\r', 5)
+		str = str.substring(0, 5) + '\n\na\r' + str.substring(5)
+		pieceTable.insert('\r\r\n\r', 10)
+		str = str.substring(0, 10) + '\r\r\n\r' + str.substring(10)
+		expect(pieceTable.getLinesContent()).toBe(str);
+		pieceTable.delete(21, 3)
+		str = str.substring(0, 21) + str.substring(21 + 3);
+		
+		// pieceTable.print();
+		expect(pieceTable.getLinesContent()).toBe(str);
+	})
+	it('random insert/delete \\r bug 4s', () => {
+		let str = 'a'
+		let pieceTable = new PieceTable('a')
+		pieceTable.delete(0, 1)
+		str = str.substring(0, 0) + str.substring(0 + 1);
+		pieceTable.insert('\naaa', 0)
+		str = str.substring(0, 0) + '\naaa' + str.substring(0)
+		pieceTable.insert('\n\naa', 2)
+		str = str.substring(0, 2) + '\n\naa' + str.substring(2)
+		pieceTable.delete(1, 4)
+		str = str.substring(0, 1) + str.substring(1 + 4);
+		pieceTable.delete(3, 1)
+		str = str.substring(0, 3) + str.substring(3 + 1);
+		pieceTable.delete(1, 2)
+		str = str.substring(0, 1) + str.substring(1 + 2);
+		pieceTable.delete(0, 1)
+		str = str.substring(0, 0) + str.substring(0 + 1);
+		pieceTable.insert('a\n\n\r', 0)
+		str = str.substring(0, 0) + 'a\n\n\r' + str.substring(0)
+		pieceTable.insert('aa\r\n', 2)
+		str = str.substring(0, 2) + 'aa\r\n' + str.substring(2)
+		pieceTable.insert('a\naa', 3)
+		str = str.substring(0, 3) + 'a\naa' + str.substring(3)
+		
+		// pieceTable.print();
+		expect(pieceTable.getLinesContent()).toBe(str);
+	})
+	it('random insert/delete \\r bug 5', () => {
+		let str = '';
+		let pieceTable = new PieceTable('')
+		pieceTable.insert('\n\n\n\r', 0)
+		str = str.substring(0, 0) + '\n\n\n\r' + str.substring(0)
+		pieceTable.insert('\n\n\n\r', 1)
+		str = str.substring(0, 1) + '\n\n\n\r' + str.substring(1)
+		pieceTable.insert('\n\r\r\r', 2)
+		str = str.substring(0, 2) + '\n\r\r\r' + str.substring(2)
+		pieceTable.insert('\n\r\n\r', 8)
+		str = str.substring(0, 8) + '\n\r\n\r' + str.substring(8)
+		pieceTable.delete(5, 2)
+		str = str.substring(0, 5) + str.substring(5 + 2);
+		
+		
+		pieceTable.insert('\n\r\r\r', 4)
+		str = str.substring(0, 4) + '\n\r\r\r' + str.substring(4)
+		pieceTable.insert('\n\n\n\r', 8)
+		str = str.substring(0, 8) + '\n\n\n\r' + str.substring(8)
+		pieceTable.delete(0, 7)
+		str = str.substring(0, 0) + str.substring(0 + 7);
+		pieceTable.insert('\r\n\r\r', 1)
+		str = str.substring(0, 1) + '\r\n\r\r' + str.substring(1)
+		pieceTable.insert('\n\r\r\r', 15)
+		str = str.substring(0, 15) + '\n\r\r\r' + str.substring(15)
+		
+		expect(pieceTable.getLinesContent()).toBe(str);
+	})
+	
 	it('random insert/delete', () => {
 		let str = 'a';
 		let pt = new PieceTable(str);
 
 		let output = '';
-		for (let i = 0; i < 10000; i++) {
+		for (let i = 0; i < 1000; i++) {
 			if (Math.random() < .5) {
 				// insert
 				let text = randomStr(100);
 				let pos = randomInt(str.length + 1);
-				output += `pieceTable.insert('${text.replace(/\n/g, '\\n')}', ${pos})\n`;
-				output += `str = str.substring(0, ${pos}) + '${text.replace(/\n/g, '\\n')}' + str.substring(${pos})\n`;
+				output += `pieceTable.insert('${text.replace(/\n/g, '\\n').replace(/\r/g, '\\r')}', ${pos})\n`;
+				output += `str = str.substring(0, ${pos}) + '${text.replace(/\n/g, '\\n').replace(/\r/g, '\\r')}' + str.substring(${pos})\n`;
 
 				pt.insert(text, pos);
 				str = str.substring(0, pos) + text + str.substring(pos);
@@ -381,10 +548,8 @@ describe('inserts and deletes', () => {
 			}
 		}
 
+		// console.log(output);
 
-		if (error.sizeLeft) {
-			console.log(output);
-		}
 		expect(pt.getLinesContent()).toBe(str);
 	});
 });
@@ -689,8 +854,6 @@ describe('prefix sum for line feed', () => {
 	});
 });
 
-
-
 describe('offset 2 position', () => {
 	it('random tests bug 1', () => {
 		let str = '';
@@ -907,7 +1070,7 @@ describe('get text in range', () => {
 		}
 	})
 });
-
+/* 
 describe('random is unsupervised', () => {
 	it('random insert delete', () => {
 		let str = '';
@@ -958,11 +1121,11 @@ describe('random is unsupervised', () => {
 			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
 		}
 		
-		let lines = str.split('\n');
+		let lines = str.split(/\r\n|\r|\n/);
 		expect(pt.getLineCount()).toBe(lines.length);
 		for (let i = 0; i < lines.length; i++) {
-			expect(pt.getLineContent(i + 1)).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
-			expect(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)})).toEqual(lines[i] + (i === lines.length - 1 ? '' : '\n'));
+			expect(trimLineFeed(pt.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
 		}
 	});
-});
+}); */
