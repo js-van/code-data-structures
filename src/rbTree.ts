@@ -634,6 +634,7 @@ export class TextBuffer {
 
 	private _originalBuffer: string;
 	private _changeBuffer: string;
+	private _regex: RegExp;
 	root: TreeNode;
 
 	constructor(originalBuffer: string, size?: number) {
@@ -644,6 +645,7 @@ export class TextBuffer {
 		this._EOL = '';
 		this._mightContainNonBasicASCII = false;
 		this._mightContainRTL = false;
+		this._regex = new RegExp(/\r\n|\r|\n/g);
 
 		if (originalBuffer.length > 0) {
 			let { lineFeedCount, lineLengths } = this.udpateLFCount(originalBuffer);
@@ -669,16 +671,27 @@ export class TextBuffer {
 					value += '\n';
 				}
 				
+				let hitCRLF = this.nodeCharCodeAt(node, node.piece.length - 1) === 13 && value.charCodeAt(0) === 10;
 				this._changeBuffer += value;
 				node.piece.length += value.length;
 				const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
-				node.piece.lineFeedCnt += lineFeedCount;
-				if (lineLengths) {
+
+				let lf_delta = lineFeedCount;
+				if (hitCRLF) {
+					node.piece.lineFeedCnt += lineFeedCount - 1;
+					lf_delta--;
+					let lineStarts = node.piece.lineStarts;
+					lineStarts.removeValues(lineStarts.values.length - 1, 1);
+					lineStarts.changeValue(lineStarts.values.length - 1, lineStarts.values[lineStarts.values.length - 1] + 1);
+					lineStarts.insertValues(lineStarts.values.length, lineLengths.slice(1));
+				} else {
+					node.piece.lineFeedCnt += lineFeedCount;
 					let lineStarts = node.piece.lineStarts;
 					lineStarts.changeValue(lineStarts.values.length - 1, lineStarts.values[lineStarts.values.length - 1] + lineLengths[0]);
 					lineStarts.insertValues(lineStarts.values.length, lineLengths.slice(1));
 				}
-				updateMetadata(this, node, value.length, lineFeedCount);
+				
+				updateMetadata(this, node, value.length, lf_delta);
 			} else {
 				if (nodeOffsetInDocument === offset) {
 					// we are inserting content to the beginning of node
@@ -707,7 +720,9 @@ export class TextBuffer {
 					const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
 					let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
 
+					let prev = node.prev();
 					rbInsertLeft(this, node, newPiece);
+					this.fixCRLF(prev);
 					
 					for (let i = 0; i < nodesToDel.length; i++) {
 						rbDelete(this, nodesToDel[i]);
@@ -748,17 +763,14 @@ export class TextBuffer {
 					if (tailOfLeft === 13 /** \r */ && value.charCodeAt(0) === 10/** \n */) {
 						let delta = (offset - nodeOffsetInDocument - 1) - node.piece.length;
 						node.piece.length = offset - nodeOffsetInDocument - 1;
-						
+						let previousPos = node.piece.lineStarts.getIndexOf(remainder - 1);
+						let lf_delta = previousPos.index - node.piece.lineFeedCnt;
 						// let lf_delta = insertPos.index - node.piece.lineFeedCnt - 1;
-						// node.piece.lineFeedCnt = insertPos.index - 1;
-						// node.piece.lineStarts.removeValues(insertPos.index, node.piece.lineStarts.values.length - insertPos.index);
-						// updateMetadata(this, node, -newRightPiece.length - 1, lf_delta);
 						
-						let lf_delta = insertPos.index - node.piece.lineFeedCnt;
-						node.piece.lineFeedCnt = insertPos.index;
-						insertPos.remainder -= 1;
-						this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
-						updateMetadata(this, node, delta, lf_delta);	
+						node.piece.lineFeedCnt = previousPos.index;
+						this.sliceRightPrefixSumComputer(node.piece.lineStarts, previousPos);
+						
+						updateMetadata(this, node, delta, lf_delta);
 						
 						value = '\r' + value;
 						
@@ -766,11 +778,19 @@ export class TextBuffer {
 							nodesToDel.push(node);
 						}
 					} else {
+						let hitCRLF = this.CRLFTest(node, offset - nodeOffsetInDocument);
 						let delta = (offset - nodeOffsetInDocument) - node.piece.length;
 						node.piece.length = offset - nodeOffsetInDocument;
 						let lf_delta = insertPos.index - node.piece.lineFeedCnt;
 						node.piece.lineFeedCnt = insertPos.index;
 						this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
+						
+						if (hitCRLF) {
+							node.piece.lineFeedCnt += 1;
+							lf_delta += 1;
+							node.piece.lineStarts.insertValues(node.piece.lineStarts.values.length, new Uint32Array(1) /*[0]*/);
+	
+						}
 						updateMetadata(this, node, delta, lf_delta);						
 					}
 					
@@ -797,6 +817,7 @@ export class TextBuffer {
 					let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
 	
 					rbInsertRight(this, node, newPiece);
+					this.fixCRLF(node);
 				}
 			}
 		} else {
@@ -811,6 +832,10 @@ export class TextBuffer {
 	}
 
 	delete(offset: number, cnt: number): void {
+		if (cnt <= 0) {
+			return;
+		}
+		
 		if (this.root !== SENTINEL) {
 			let startPosition = this.nodeAt(offset);
 			let endPosition = this.nodeAt(offset + cnt);
@@ -827,40 +852,67 @@ export class TextBuffer {
 
 				if (startNodeOffsetInDocument === offset) {
 					if (cnt === length) {
+						let prev = startNode.prev();
 						rbDelete(this, startNode);
+						if (prev !== SENTINEL) {
+							this.fixCRLF(prev);
+						}
 						return;
 					}
 
 					// delete head
+					// it's okay to delete CR in CRLF.
 					startNode.piece.length -= cnt;
 					startNode.piece.offset += cnt;
 					startNode.piece.lineFeedCnt -= endSplitPos.index;
 					this.sliceLeftPrefixSumComputer(startNode.piece.lineStarts, endSplitPos);
 					updateMetadata(this, startNode, -cnt, -endSplitPos.index);
+					
+					let prev = startNode.prev();
+					if (prev !== SENTINEL) {
+						this.fixCRLF(prev);
+					}
 					return;
 				}
 
 				if (startNodeOffsetInDocument + length === offset + cnt) {
 					// delete tail
+					let hitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument);
 					startNode.piece.length -= cnt;
 					let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 					startNode.piece.lineFeedCnt = splitPos.index;
 					this.sliceRightPrefixSumComputer(startNode.piece.lineStarts, splitPos);
+
+					if (hitCRLF) {
+						startNode.piece.lineFeedCnt += 1;
+						lf_delta += 1;
+						startNode.piece.lineStarts.insertValues(startNode.piece.lineStarts.values.length, new Uint32Array(1) /*[0]*/);
+					}
+					
 					updateMetadata(this, startNode, -cnt, lf_delta);
+					
+					this.fixCRLF(startNode);
 					return;
 				}
 
-				// delete content in the middle
-				// this node will be splitted to nodes
+				// delete content in the middle, this node will be splitted to nodes
 
 				// read operations first
 				let oldLineLengthsVal = startNode.piece.lineStarts.values;
 
+				let startHitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument);
 				startNode.piece.length = offset - startNodeOffsetInDocument;
 				let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 				startNode.piece.lineFeedCnt = splitPos.index;
 				startNode.piece.lineStarts = new PrefixSumComputer(oldLineLengthsVal.slice(0, splitPos.index + 1));
 				startNode.piece.lineStarts.changeValue(splitPos.index, splitPos.remainder);
+				
+				if (startHitCRLF) {
+					startNode.piece.lineFeedCnt += 1;
+					lf_delta += 1;
+					startNode.piece.lineStarts.insertValues(startNode.piece.lineStarts.values.length, new Uint32Array(1) /*[0]*/);
+				}
+				
 				updateMetadata(this, startNode, -(startNodeOffsetInDocument + length - offset), lf_delta);
 
 				let newPieceLength = startNodeOffsetInDocument + length - offset - cnt;
@@ -878,6 +930,7 @@ export class TextBuffer {
 				newPiece.lineStarts.changeValue(0, newPiece.lineStarts.values[0] - endSplitPos.remainder);
 
 				rbInsertRight(this, startNode, newPiece);
+				this.fixCRLF(startNode);
 				// this.validate();
 				return;
 			}
@@ -887,10 +940,16 @@ export class TextBuffer {
 			let endNodeOffsetInDocument = this.offsetOfNode(endNode);
 
 			// update firstTouchedNode
+			let hitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument);
 			startNode.piece.length = offset - startNodeOffsetInDocument;
 			let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 			startNode.piece.lineFeedCnt = splitPos.index;
 			this.sliceRightPrefixSumComputer(startNode.piece.lineStarts, splitPos);
+			if (hitCRLF) {
+				startNode.piece.lineFeedCnt++;
+				lf_delta++;
+				startNode.piece.lineStarts.insertValues(startNode.piece.lineStarts.values.length, new Uint32Array(1) /*[0]*/);
+			}
 			updateMetadata(this, startNode, -(startNodeOffsetInDocument + length - offset), lf_delta);
 			let nodesToDel = [];
 			if (startNode.piece.length === 0) {
@@ -916,8 +975,73 @@ export class TextBuffer {
 				}
 			}
 
+			let prev = startNode.piece.length === 0 ? startNode.prev() : startNode;
+			
 			for (let i = 0; i < nodesToDel.length; i++) {
 				rbDelete(this, nodesToDel[i]);
+			}
+			
+			if (prev !== SENTINEL) {
+				this.fixCRLF(prev);
+			}
+		}
+	}
+	
+	CRLFTest(node: TreeNode, offset: number) {
+		if (node.piece.length === offset) {
+			return false;
+		}
+		return this.nodeCharCodeAt(node, offset - 1) === 13/* \r */ && this.nodeCharCodeAt(node, offset) === 10 /* \n */;
+	}
+	
+	/**
+	 * If node ends with \r and node's next ends with \n, we need to fix the line feed.
+	 * @param node 
+	 */
+	fixCRLF(node: TreeNode) {
+		if (node === SENTINEL) {
+			return;
+		}
+		
+		if (this.nodeCharCodeAt(node, node.piece.length - 1) === 13 /* \r */) {
+			let nextNode = node.next();
+			if (nextNode !== SENTINEL && this.nodeCharCodeAt(nextNode, 0) === 10 /* \n */) {
+				let nodesToDel = [];
+				// update node
+				node.piece.length -= 1;
+				node.piece.lineFeedCnt -= 1;
+				let lineStarts = node.piece.lineStarts;
+				// lineStarts.values.length >= 2 due to a `\r`
+				lineStarts.removeValues(lineStarts.values.length - 1, 1)
+				lineStarts.changeValue(lineStarts.values.length - 1, lineStarts.values[lineStarts.values.length - 1] - 1);
+				updateMetadata(this, node, - 1, -1);
+				
+				if (node.piece.length === 0) {
+					nodesToDel.push(node);
+				}
+				
+				// update nextNode
+				nextNode.piece.length -= 1;
+				nextNode.piece.offset += 1;
+				nextNode.piece.lineFeedCnt -= 1;
+				lineStarts = nextNode.piece.lineStarts;
+				lineStarts.removeValues(0, 1);
+				updateMetadata(this, nextNode, - 1, -1);
+				if (nextNode.piece.length === 0) {
+					nodesToDel.push(nextNode);
+				}
+				
+				// create new piece which contains \r\n
+				let startOffset = this._changeBuffer.length;
+				this._changeBuffer += '\r\n';
+				const { lineFeedCount, lineLengths } = this.udpateLFCount('\r\n');
+				let piece = new Piece(false, startOffset, 2, lineFeedCount, lineLengths);
+				rbInsertRight(this, node, piece);
+				// delete empty nodes
+				
+				for (let i = 0; i < nodesToDel.length; i++) {
+					rbDelete(this, nodesToDel[i]);
+				}
 			}
 		}
 	}
@@ -1285,25 +1409,50 @@ export class TextBuffer {
 	}
 
 	private udpateLFCount(chunk: string): { lineFeedCount: number, lineLengths: Uint32Array } {
-		let chunkLineFeedCnt = 0;
-		let lastLineFeedIndex = -1;
-		let lineFeedStarts: number[] = [-1];
+		let lineStarts = [0];
+		
+		// Reset regex to search from the beginning
+		this._regex.lastIndex = 0;
+		let prevMatchStartIndex = -1;
+		let prevMatchLength = 0;
+		
+		let m: RegExpExecArray;
+		do {
+			if (prevMatchStartIndex + prevMatchLength === chunk.length) {
+				// Reached the end of the line
+				break;
+			}
+			
+			m = this._regex.exec(chunk);
+			if (!m) {
+				break;
+			}
+			
+			const matchStartIndex = m.index;
+			const matchLength = m[0].length;
+			
+			if (matchStartIndex === prevMatchStartIndex && matchLength === prevMatchLength) {
+				// Exit early if the regex matches the same range twice
+				break;
+			}
+			
+			prevMatchStartIndex = matchStartIndex;
+			prevMatchLength = matchLength;
+			
+			lineStarts.push(matchStartIndex + matchLength);
 
-		while ((lastLineFeedIndex = chunk.indexOf('\n', lastLineFeedIndex + 1)) !== -1) {
-			chunkLineFeedCnt++;
-			lineFeedStarts.push(lastLineFeedIndex);
+		} while (m)
+		
+		const lineLengths = new Uint32Array(lineStarts.length);
+		for(let i = 1; i < lineStarts.length; i++) {
+			lineLengths[i - 1] = lineStarts[i] - lineStarts[i - 1];
 		}
-
-		const lineStartValues = new Uint32Array(chunkLineFeedCnt + 1);
-		for (let i = 1; i <= chunkLineFeedCnt; i++) {
-			lineStartValues[i - 1] = lineFeedStarts[i] - lineFeedStarts[i - 1];
-		}
-
-		lineStartValues[chunkLineFeedCnt] = chunk.length - lineFeedStarts[lineFeedStarts.length - 1] - 1;
+		
+		lineLengths[lineStarts.length - 1] = chunk.length - lineStarts[lineStarts.length - 1];
 
 		return {
-			lineFeedCount: chunkLineFeedCnt,
-			lineLengths: lineStartValues
+			lineFeedCount: lineLengths.length - 1,
+			lineLengths: lineLengths
 		};
 	}
 }

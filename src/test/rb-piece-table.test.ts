@@ -1070,22 +1070,243 @@ describe('get text in range', () => {
 		}
 	})
 });
-/* 
+
+describe('CRLF', () => {
+	it('delete CR in CRLF', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('a\r\nb', 0)
+		pieceTable.delete(0, 2);
+		
+		expect(pieceTable.getLineCount()).toBe(2);
+	});
+	
+	it('delete CR in CRLF', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('a\r\nb', 0)
+		pieceTable.delete(2, 2);
+		
+		expect(pieceTable.getLineCount()).toBe(2);
+	});
+	
+	it('random bug 1', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		pieceTable.insert('\n\n\r\r', 0)
+		str = str.substring(0, 0) + '\n\n\r\r' + str.substring(0)
+		pieceTable.insert('\r\n\r\n', 1)
+		str = str.substring(0, 1) + '\r\n\r\n' + str.substring(1)
+		pieceTable.delete(5, 3)
+		str = str.substring(0, 5) + str.substring(5 + 3);
+		pieceTable.delete(2, 3)
+		str = str.substring(0, 2) + str.substring(2 + 3);
+		
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+	});
+	
+	it('random bug 2', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\n\r\n\r', 0)
+		str = str.substring(0, 0) + '\n\r\n\r' + str.substring(0)
+		pieceTable.insert('\n\r\r\r', 2)
+		str = str.substring(0, 2) + '\n\r\r\r' + str.substring(2)
+		pieceTable.delete(4, 1)
+		str = str.substring(0, 4) + str.substring(4 + 1);
+		
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+	});
+	it('random bug 3', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\n\n\n\r', 0)
+		str = str.substring(0, 0) + '\n\n\n\r' + str.substring(0)
+		pieceTable.delete(2, 2)
+		str = str.substring(0, 2) + str.substring(2 + 2);
+		pieceTable.delete(0, 2)
+		str = str.substring(0, 0) + str.substring(0 + 2);
+		pieceTable.insert('\r\r\r\r', 0)
+		str = str.substring(0, 0) + '\r\r\r\r' + str.substring(0)
+		pieceTable.insert('\r\n\r\r', 2)
+		str = str.substring(0, 2) + '\r\n\r\r' + str.substring(2)
+		pieceTable.insert('\r\r\r\n', 3)
+		str = str.substring(0, 3) + '\r\r\r\n' + str.substring(3)
+		
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+	});
+	it('random bug 4', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\n\n\n\n', 0)
+		str = str.substring(0, 0) + '\n\n\n\n' + str.substring(0)
+		pieceTable.delete(3, 1)
+		str = str.substring(0, 3) + str.substring(3 + 1);
+		pieceTable.insert('\r\r\r\r', 1)
+		str = str.substring(0, 1) + '\r\r\r\r' + str.substring(1)
+		pieceTable.insert('\r\n\n\r', 6)
+		str = str.substring(0, 6) + '\r\n\n\r' + str.substring(6)
+		pieceTable.delete(5, 3)
+		str = str.substring(0, 5) + str.substring(5 + 3);
+		
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLinesContent()).toBe(str);
+		for (let i = 0; i < lines.length; i++) {
+			expect(trimLineFeed(pieceTable.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
+		}
+	});
+	it('random bug 5', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\n\n\n\n', 0)
+		str = str.substring(0, 0) + '\n\n\n\n' + str.substring(0)
+		pieceTable.delete(3, 1)
+		str = str.substring(0, 3) + str.substring(3 + 1);
+		pieceTable.insert('\n\r\r\n', 0)
+		str = str.substring(0, 0) + '\n\r\r\n' + str.substring(0)
+		pieceTable.insert('\n\r\r\n', 4)
+		str = str.substring(0, 4) + '\n\r\r\n' + str.substring(4)
+		pieceTable.delete(4, 3)
+		str = str.substring(0, 4) + str.substring(4 + 3);
+		pieceTable.insert('\r\r\n\r', 5)
+		str = str.substring(0, 5) + '\r\r\n\r' + str.substring(5)
+		pieceTable.insert('\n\n\n\r', 12)
+		str = str.substring(0, 12) + '\n\n\n\r' + str.substring(12)
+		pieceTable.insert('\r\r\r\n', 5)
+		str = str.substring(0, 5) + '\r\r\r\n' + str.substring(5)
+		pieceTable.insert('\n\n\r\n', 20)
+		str = str.substring(0, 20) + '\n\n\r\n' + str.substring(20)
+		
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLinesContent()).toBe(str);
+		for (let i = 0; i < lines.length; i++) {
+			expect(trimLineFeed(pieceTable.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
+		}
+	});
+	it('random bug 6', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\n\r\r\n', 0)
+		str = str.substring(0, 0) + '\n\r\r\n' + str.substring(0)
+		pieceTable.insert('\r\n\n\r', 4)
+		str = str.substring(0, 4) + '\r\n\n\r' + str.substring(4)
+		pieceTable.insert('\r\n\n\n', 3)
+		str = str.substring(0, 3) + '\r\n\n\n' + str.substring(3)
+		pieceTable.delete(4, 8)
+		str = str.substring(0, 4) + str.substring(4 + 8);
+		pieceTable.insert('\r\n\n\r', 4)
+		str = str.substring(0, 4) + '\r\n\n\r' + str.substring(4)
+		pieceTable.insert('\r\n\n\r', 0)
+		str = str.substring(0, 0) + '\r\n\n\r' + str.substring(0)
+		pieceTable.delete(4, 0)
+		str = str.substring(0, 4) + str.substring(4 + 0);
+		pieceTable.delete(8, 4)
+		str = str.substring(0, 8) + str.substring(8 + 4);
+		
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLinesContent()).toBe(str);
+		for (let i = 0; i < lines.length; i++) {
+			expect(trimLineFeed(pieceTable.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
+		}
+	});
+	it('random bug 8', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\r\n\n\r', 0)
+		str = str.substring(0, 0) + '\r\n\n\r' + str.substring(0)
+		pieceTable.delete(1, 0)
+		str = str.substring(0, 1) + str.substring(1 + 0);
+		pieceTable.insert('\n\n\n\r', 3)
+		str = str.substring(0, 3) + '\n\n\n\r' + str.substring(3)
+		pieceTable.insert('\n\n\r\n', 7)
+		str = str.substring(0, 7) + '\n\n\r\n' + str.substring(7)
+				
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLinesContent()).toBe(str);
+		for (let i = 0; i < lines.length; i++) {
+			expect(trimLineFeed(pieceTable.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
+		}
+	});
+	it('random bug 7', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\r\r\n\n', 0)
+		str = str.substring(0, 0) + '\r\r\n\n' + str.substring(0)
+		pieceTable.insert('\r\n\n\r', 4)
+		str = str.substring(0, 4) + '\r\n\n\r' + str.substring(4)
+		pieceTable.insert('\n\r\r\r', 7)
+		str = str.substring(0, 7) + '\n\r\r\r' + str.substring(7)
+		pieceTable.insert('\n\n\r\n', 11)
+		str = str.substring(0, 11) + '\n\n\r\n' + str.substring(11)
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLinesContent()).toBe(str);
+		for (let i = 0; i < lines.length; i++) {
+			expect(trimLineFeed(pieceTable.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
+		}
+	});
+	it('random bug 9', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('\n\n\n\n', 0)
+		str = str.substring(0, 0) + '\n\n\n\n' + str.substring(0)
+		pieceTable.insert('\n\r\n\r', 3)
+		str = str.substring(0, 3) + '\n\r\n\r' + str.substring(3)
+		pieceTable.insert('\n\r\n\n', 2)
+		str = str.substring(0, 2) + '\n\r\n\n' + str.substring(2)
+		pieceTable.insert('\n\n\r\r', 0)
+		str = str.substring(0, 0) + '\n\n\r\r' + str.substring(0)
+		pieceTable.insert('\r\r\r\r', 3)
+		str = str.substring(0, 3) + '\r\r\r\r' + str.substring(3)
+		pieceTable.insert('\n\n\r\r', 3)
+		str = str.substring(0, 3) + '\n\n\r\r' + str.substring(3)
+		
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLinesContent()).toBe(str);
+		for (let i = 0; i < lines.length; i++) {
+			expect(trimLineFeed(pieceTable.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
+		}
+	});
+
+});
+
 describe('random is unsupervised', () => {
 	it('random insert delete', () => {
 		let str = '';
 		let pt = new PieceTable(str);
 		
 		let output = '';
-		for (let i = 0; i < 1000; i++) {
-			if (Math.random() < .5) {
+		for (let i = 0; i < 10000; i++) {
+			if (Math.random() < .6) {
 				// insert
 				let text = randomStr(100);
 				let pos = randomInt(str.length + 1);
 				pt.insert(text, pos);
 				
-				output += `pieceTable.insert('${text.replace(/\n/g, '\\n')}', ${pos})\n`;
-				output += `str = str.substring(0, ${pos}) + '${text.replace(/\n/g, '\\n')}' + str.substring(${pos})\n`;
+				output += `pieceTable.insert('${text.replace(/\n/g, '\\n').replace(/\r/g, '\\r')}', ${pos})\n`;
+				output += `str = str.substring(0, ${pos}) + '${text.replace(/\n/g, '\\n').replace(/\r/g, '\\r')}' + str.substring(${pos})\n`;
 				
 				str = str.substring(0, pos) + text + str.substring(pos);
 			} else {
@@ -1110,16 +1331,16 @@ describe('random is unsupervised', () => {
 		let lastLineFeedIndex = -1;
 		let lineCnt = 1;
 		
-		while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
-			if (lineFeedIndex + 1 === str.length) {
-				// last line feed
-				break;
-			}
+		// while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
+		// 	if (lineFeedIndex + 1 === str.length) {
+		// 		// last line feed
+		// 		break;
+		// 	}
 			
-			lineCnt += 1;
-			expect(pt.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
-			expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
-		}
+		// 	lineCnt += 1;
+		// 	expect(pt.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
+		// 	expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
+		// }
 		
 		let lines = str.split(/\r\n|\r|\n/);
 		expect(pt.getLineCount()).toBe(lines.length);
@@ -1128,4 +1349,4 @@ describe('random is unsupervised', () => {
 			expect(trimLineFeed(pt.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
 		}
 	});
-}); */
+});
