@@ -113,7 +113,7 @@ function rightRotate(tree: TextBuffer, y: TreeNode) {
  * @param node
  * @param p
  */
-export function rbInsertRight(tree: TextBuffer, node: TreeNode, p: Piece) {
+export function rbInsertRight(tree: TextBuffer, node: TreeNode, p: Piece): TreeNode {
 	let z = new TreeNode(p, NodeColor.Red);
 	z.left = SENTINEL;
 	z.right = SENTINEL;
@@ -135,6 +135,7 @@ export function rbInsertRight(tree: TextBuffer, node: TreeNode, p: Piece) {
 	}
 
 	fixInsert(tree, z);
+	return z;
 }
 
 /**
@@ -148,7 +149,7 @@ export function rbInsertRight(tree: TextBuffer, node: TreeNode, p: Piece) {
  * @param node
  * @param p
  */
-export function rbInsertLeft(tree: TextBuffer, node: TreeNode, p: Piece) {
+export function rbInsertLeft(tree: TextBuffer, node: TreeNode, p: Piece): TreeNode {
 	let z = new TreeNode(p, NodeColor.Red);
 	z.left = SENTINEL;
 	z.right = SENTINEL;
@@ -170,6 +171,7 @@ export function rbInsertLeft(tree: TextBuffer, node: TreeNode, p: Piece) {
 	}
 
 	fixInsert(tree, z);
+	return z;
 }
 
 export function fixInsert(tree: TextBuffer, x: TreeNode) {
@@ -671,7 +673,7 @@ export class TextBuffer {
 					value += '\n';
 				}
 				
-				let hitCRLF = this.nodeCharCodeAt(node, node.piece.length - 1) === 13 && value.charCodeAt(0) === 10;
+				let hitCRLF = value.charCodeAt(0) === 10 && this.nodeCharCodeAt(node, node.piece.length - 1) === 13;
 				this._changeBuffer += value;
 				node.piece.length += value.length;
 				const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
@@ -720,9 +722,8 @@ export class TextBuffer {
 					const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
 					let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
 
-					let prev = node.prev();
-					rbInsertLeft(this, node, newPiece);
-					this.fixCRLF(prev);
+					let newNode = rbInsertLeft(this, node, newPiece);
+					this.fixCRLFBackward(newNode);
 					
 					for (let i = 0; i < nodesToDel.length; i++) {
 						rbDelete(this, nodesToDel[i]);
@@ -731,13 +732,14 @@ export class TextBuffer {
 					let nodesToDel = [];
 					
 					// we need to split node.
-					let headOfRight = this.nodeCharCodeAt(node, offset - nodeOffsetInDocument);
-					let tailOfLeft = this.nodeCharCodeAt(node, offset - nodeOffsetInDocument - 1);
 					let newRightPiece: Piece;
 					
 					// create the new piece first as we are reading current node info before mdofiying it.
 					
-					if (value.charCodeAt(value.length - 1) === 13 /** \r */ && headOfRight === 10 /** \n */) {
+					if (value.charCodeAt(value.length - 1) === 13 /** \r */) {
+						let headOfRight = this.nodeCharCodeAt(node, offset - nodeOffsetInDocument);
+
+						if (headOfRight === 10 /** \n */) {
 						newRightPiece = new Piece(
 							node.piece.isOriginalBuffer,
 							node.piece.offset + offset - nodeOffsetInDocument + 1,
@@ -757,10 +759,22 @@ export class TextBuffer {
 						);
 						this.sliceLeftPrefixSumComputer(newRightPiece.lineStarts, insertPos);
 					}
+					} else {
+						newRightPiece = new Piece(
+							node.piece.isOriginalBuffer,
+							node.piece.offset + offset - nodeOffsetInDocument,
+							nodeOffsetInDocument + node.piece.length - offset,
+							node.piece.lineFeedCnt - insertPos.index,
+							node.piece.lineStarts.values
+						);
+						this.sliceLeftPrefixSumComputer(newRightPiece.lineStarts, insertPos);
+					}
 					
 					// update node metadata
 					
-					if (tailOfLeft === 13 /** \r */ && value.charCodeAt(0) === 10/** \n */) {
+					if (value.charCodeAt(0) === 10/** \n */) {
+						let tailOfLeft = this.nodeCharCodeAt(node, offset - nodeOffsetInDocument - 1);
+						if (tailOfLeft === 13 /** \r */) {
 						let delta = (offset - nodeOffsetInDocument - 1) - node.piece.length;
 						node.piece.length = offset - nodeOffsetInDocument - 1;
 						let previousPos = node.piece.lineStarts.getIndexOf(remainder - 1);
@@ -778,13 +792,29 @@ export class TextBuffer {
 							nodesToDel.push(node);
 						}
 					} else {
-						let hitCRLF = this.CRLFTest(node, offset - nodeOffsetInDocument);
+							let hitCRLF = this.CRLFTest(node, offset - nodeOffsetInDocument, insertPos);
 						let delta = (offset - nodeOffsetInDocument) - node.piece.length;
 						node.piece.length = offset - nodeOffsetInDocument;
 						let lf_delta = insertPos.index - node.piece.lineFeedCnt;
 						node.piece.lineFeedCnt = insertPos.index;
 						this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
 						
+						if (hitCRLF) {
+							node.piece.lineFeedCnt += 1;
+							lf_delta += 1;
+							node.piece.lineStarts.insertValues(node.piece.lineStarts.values.length, new Uint32Array(1) /*[0]*/);
+	
+						}
+						updateMetadata(this, node, delta, lf_delta);						
+					}
+					} else {
+						let hitCRLF = this.CRLFTest(node, offset - nodeOffsetInDocument, insertPos);
+						let delta = (offset - nodeOffsetInDocument) - node.piece.length;
+						node.piece.length = offset - nodeOffsetInDocument;
+						let lf_delta = insertPos.index - node.piece.lineFeedCnt;
+						node.piece.lineFeedCnt = insertPos.index;
+						this.sliceRightPrefixSumComputer(node.piece.lineStarts, insertPos);
+					
 						if (hitCRLF) {
 							node.piece.lineFeedCnt += 1;
 							lf_delta += 1;
@@ -877,7 +907,7 @@ export class TextBuffer {
 
 				if (startNodeOffsetInDocument + length === offset + cnt) {
 					// delete tail
-					let hitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument);
+					let hitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument, splitPos);
 					startNode.piece.length -= cnt;
 					let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 					startNode.piece.lineFeedCnt = splitPos.index;
@@ -900,7 +930,7 @@ export class TextBuffer {
 				// read operations first
 				let oldLineLengthsVal = startNode.piece.lineStarts.values;
 
-				let startHitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument);
+				let startHitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument, splitPos);
 				startNode.piece.length = offset - startNodeOffsetInDocument;
 				let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 				startNode.piece.lineFeedCnt = splitPos.index;
@@ -940,7 +970,7 @@ export class TextBuffer {
 			let endNodeOffsetInDocument = this.offsetOfNode(endNode);
 
 			// update firstTouchedNode
-			let hitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument);
+			let hitCRLF = this.CRLFTest(startNode, offset - startNodeOffsetInDocument, splitPos);
 			startNode.piece.length = offset - startNodeOffsetInDocument;
 			let lf_delta = splitPos.index - startNode.piece.lineFeedCnt;
 			startNode.piece.lineFeedCnt = splitPos.index;
@@ -987,11 +1017,75 @@ export class TextBuffer {
 		}
 	}
 	
-	CRLFTest(node: TreeNode, offset: number) {
-		if (node.piece.length === offset) {
+	CRLFTest(node: TreeNode, offset: number, position: PrefixSumIndexOfResult) {
+		if (node.piece.lineFeedCnt < 1) {
 			return false;
 		}
+		
+		let currentLineLen = node.piece.lineStarts.getAccumulatedValue(position.index);
+		if (offset === currentLineLen - 1) {
+			// charCodeAt becomes slow (single or even two digits ms) when the changed buffer is long
 		return this.nodeCharCodeAt(node, offset - 1) === 13/* \r */ && this.nodeCharCodeAt(node, offset) === 10 /* \n */;
+	}
+		return false;
+		
+	}
+	
+	fixCRLFBackward(nextNode: TreeNode) {
+		if (nextNode == SENTINEL || nextNode.piece.lineFeedCnt === 0) {
+			return;
+		}
+		
+		if (nextNode.piece.lineStarts.getAccumulatedValue(0) !== 1 /* if it's \n, the first line is 1 char */) {
+			return;
+		}
+		
+		if (this.nodeCharCodeAt(nextNode, 0) === 10 /* \n */) {
+			let node = nextNode.prev();
+			
+			if (node === SENTINEL || node.piece.lineFeedCnt === 0) {
+				return;
+			}
+			
+			if (this.nodeCharCodeAt(node, node.piece.length - 1) === 13) {
+				let nodesToDel = [];
+				// update node
+				node.piece.length -= 1;
+				node.piece.lineFeedCnt -= 1;
+				let lineStarts = node.piece.lineStarts;
+				// lineStarts.values.length >= 2 due to a `\r`
+				lineStarts.removeValues(lineStarts.values.length - 1, 1)
+				lineStarts.changeValue(lineStarts.values.length - 1, lineStarts.values[lineStarts.values.length - 1] - 1);
+				updateMetadata(this, node, - 1, -1);
+				
+				if (node.piece.length === 0) {
+					nodesToDel.push(node);
+				}
+				
+				// update nextNode
+				nextNode.piece.length -= 1;
+				nextNode.piece.offset += 1;
+				nextNode.piece.lineFeedCnt -= 1;
+				lineStarts = nextNode.piece.lineStarts;
+				lineStarts.removeValues(0, 1);
+				updateMetadata(this, nextNode, - 1, -1);
+				if (nextNode.piece.length === 0) {
+					nodesToDel.push(nextNode);
+				}
+				
+				// create new piece which contains \r\n
+				let startOffset = this._changeBuffer.length;
+				this._changeBuffer += '\r\n';
+				const { lineFeedCount, lineLengths } = this.udpateLFCount('\r\n');
+				let piece = new Piece(false, startOffset, 2, lineFeedCount, lineLengths);
+				rbInsertRight(this, node, piece);
+				// delete empty nodes
+				
+				for (let i = 0; i < nodesToDel.length; i++) {
+					rbDelete(this, nodesToDel[i]);
+				}
+			}
+		}
 	}
 	
 	/**
@@ -1392,6 +1486,9 @@ export class TextBuffer {
 	}
 	
 	nodeCharCodeAt(node: TreeNode, offset: number): number {
+		if (node.piece.lineFeedCnt < 1) {
+			return -1;
+		}
 		let buffer = node.piece.isOriginalBuffer ? this._originalBuffer : this._changeBuffer;
 		
 		return buffer.charCodeAt(node.piece.offset + offset);
