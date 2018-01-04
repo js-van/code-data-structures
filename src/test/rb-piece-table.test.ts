@@ -1298,7 +1298,7 @@ describe('random is unsupervised', () => {
 		let pt = new PieceTable(str);
 		
 		let output = '';
-		for (let i = 0; i < 10000; i++) {
+		for (let i = 0; i < 1000; i++) {
 			if (Math.random() < .6) {
 				// insert
 				let text = randomStr(100);
@@ -1326,21 +1326,46 @@ describe('random is unsupervised', () => {
 		// console.log(output);
 		
 		expect(pt.getLinesContent()).toBe(str);
-
-		let lineFeedIndex = -1;
-		let lastLineFeedIndex = -1;
-		let lineCnt = 1;
 		
-		// while ((lineFeedIndex = str.indexOf('\n', lineFeedIndex + 1)) !== -1) {
-		// 	if (lineFeedIndex + 1 === str.length) {
-		// 		// last line feed
-		// 		break;
-		// 	}
+		let lineStarts = [0];
+		
+		// Reset regex to search from the beginning
+		let _regex = new RegExp(/\r\n|\r|\n/g);
+		_regex.lastIndex = 0;
+		let prevMatchStartIndex = -1;
+		let prevMatchLength = 0;
+		
+		let m: RegExpExecArray;
+		do {
+			if (prevMatchStartIndex + prevMatchLength === str.length) {
+				// Reached the end of the line
+				break;
+			}
 			
-		// 	lineCnt += 1;
-		// 	expect(pt.getPositionAt(lineFeedIndex + 1)).toEqual(new Position(lineCnt, 1));
-		// 	expect(pt.getOffsetAt(new Position(lineCnt, 1))).toEqual(lineFeedIndex + 1);
-		// }
+			m = _regex.exec(str);
+			if (!m) {
+				break;
+			}
+			
+			const matchStartIndex = m.index;
+			const matchLength = m[0].length;
+			
+			if (matchStartIndex === prevMatchStartIndex && matchLength === prevMatchLength) {
+				// Exit early if the regex matches the same range twice
+				break;
+			}
+			
+			prevMatchStartIndex = matchStartIndex;
+			prevMatchLength = matchLength;
+			
+			lineStarts.push(matchStartIndex + matchLength);
+
+		} while (m)
+		
+		for (let i = 0; i < lineStarts.length; i++) {
+			expect(pt.getPositionAt(lineStarts[i])).toEqual(new Position(i + 1, 1));
+			expect(pt.getOffsetAt(new Position(i + 1, 1))).toEqual(lineStarts[i]);
+		}
 		
 		let lines = str.split(/\r\n|\r|\n/);
 		expect(pt.getLineCount()).toBe(lines.length);
