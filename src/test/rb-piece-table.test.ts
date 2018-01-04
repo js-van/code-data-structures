@@ -21,6 +21,10 @@ function trimLineFeed(text: string): string {
 		return text.slice(0, -1);
 	}
 	
+	if (text.charCodeAt(text.length - 1) === 13) {
+		return text.slice(0, -1);
+	}
+	
 	return text;
 }
 
@@ -1256,6 +1260,31 @@ describe('CRLF', () => {
 		str = str.substring(0, 7) + '\n\r\r\r' + str.substring(7)
 		pieceTable.insert('\n\n\r\n', 11)
 		str = str.substring(0, 11) + '\n\n\r\n' + str.substring(11)
+		let lines = str.split(/\r\n|\r|\n/);
+		expect(pieceTable.getLineCount()).toBe(lines.length);
+		expect(pieceTable.getLinesContent()).toBe(str);
+		for (let i = 0; i < lines.length; i++) {
+			expect(trimLineFeed(pieceTable.getLineContent(i + 1))).toEqual(lines[i]);
+			expect(trimLineFeed(pieceTable.getValueInRange({startLineNumber: i + 1, startColumn: 1, endLineNumber: i + 1, endColumn: lines[i].length + (i === lines.length - 1 ? 1 : 2)}))).toEqual(lines[i]);
+		}
+	});
+	it('random bug 10', () => {
+		let str = '';
+		let pieceTable = new PieceTable('');
+		
+		pieceTable.insert('qneW', 0)
+		str = str.substring(0, 0) + 'qneW' + str.substring(0)
+		pieceTable.insert('YhIl', 0)
+		str = str.substring(0, 0) + 'YhIl' + str.substring(0)
+		pieceTable.insert('qdsm', 0)
+		str = str.substring(0, 0) + 'qdsm' + str.substring(0)
+		pieceTable.delete(7, 0)
+		str = str.substring(0, 7) + str.substring(7 + 0);
+		pieceTable.insert('iiPv', 12)
+		str = str.substring(0, 12) + 'iiPv' + str.substring(12)
+		pieceTable.insert('V\rSA', 9)
+		str = str.substring(0, 9) + 'V\rSA' + str.substring(9)
+		
 		let lines = str.split(/\r\n|\r|\n/);
 		expect(pieceTable.getLineCount()).toBe(lines.length);
 		expect(pieceTable.getLinesContent()).toBe(str);
