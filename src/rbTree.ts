@@ -846,8 +846,9 @@ export class TextBuffer {
 					const { lineFeedCount, lineLengths } = this.udpateLFCount(value);
 					let newPiece: Piece = new Piece(false, startOffset, value.length, lineFeedCount, lineLengths);
 	
-					rbInsertRight(this, node, newPiece);
-					this.fixCRLF(node);
+					let newNode = rbInsertRight(this, node, newPiece);
+					// this.fixCRLF(node);
+					this.fixCRLFBackward(newNode);
 				}
 			}
 		} else {
@@ -882,11 +883,13 @@ export class TextBuffer {
 
 				if (startNodeOffsetInDocument === offset) {
 					if (cnt === length) {
-						let prev = startNode.prev();
+						// let prev = startNode.prev();
+						let next = startNode.next();
 						rbDelete(this, startNode);
-						if (prev !== SENTINEL) {
-							this.fixCRLF(prev);
-						}
+						// if (prev !== SENTINEL) {
+						// 	this.fixCRLF(prev);
+						// }
+						this.fixCRLFBackward(next);
 						return;
 					}
 
@@ -898,10 +901,11 @@ export class TextBuffer {
 					this.sliceLeftPrefixSumComputer(startNode.piece.lineStarts, endSplitPos);
 					updateMetadata(this, startNode, -cnt, -endSplitPos.index);
 					
-					let prev = startNode.prev();
-					if (prev !== SENTINEL) {
-						this.fixCRLF(prev);
-					}
+					// let prev = startNode.prev();
+					// if (prev !== SENTINEL) {
+					// 	this.fixCRLF(prev);
+					// }
+					this.fixCRLFBackward(startNode);
 					return;
 				}
 
@@ -959,8 +963,9 @@ export class TextBuffer {
 				);
 				newPiece.lineStarts.changeValue(0, newPiece.lineStarts.values[0] - endSplitPos.remainder);
 
-				rbInsertRight(this, startNode, newPiece);
-				this.fixCRLF(startNode);
+				let newNode = rbInsertRight(this, startNode, newPiece);
+				// this.fixCRLF(startNode);
+				this.fixCRLFBackward(newNode);
 				// this.validate();
 				return;
 			}
