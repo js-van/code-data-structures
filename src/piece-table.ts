@@ -1,7 +1,7 @@
 import { PrefixSumComputer } from './prefixSumComputer';
 import { IPosition, Position } from './position';
 import * as rb from './rbTree';
-import { Piece, rbInsertLeft } from './rbTree';
+import { Piece } from './rbTree';
 
 export interface IPiece {
 	isOriginalBuffer: boolean;
